@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: syntax check
+        run: npm run check
+      - name: unit tests
+        run: npm test
+
+  release:
+    name: attach bundle zip to release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: verify before shipping
+        run: npm run verify
+      - name: build the installable bundle
+        run: |
+          NAME="dsh-prompt-optimizer-${GITHUB_REF_NAME}.zip"
+          zip -r "$NAME" package.json index.js client.js lib cordis.patch.yml locale icon.svg README.md CHANGELOG.md LICENSE
+          echo "NAME=$NAME" >> "$GITHUB_ENV"
+      - name: publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.NAME }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true

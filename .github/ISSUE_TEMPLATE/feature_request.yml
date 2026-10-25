@@ -1,0 +1,32 @@
+name: Feature request
+description: 想要的能力或改写规则改动
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请描述**你遇到的实际场景**，而不是先给实现方案 —— 场景决定了它在 `lib/rewrite.js` 里改哪一层。
+  - type: textarea
+    id: scenario
+    attributes:
+      label: 使用场景
+      placeholder: 我在写 XX 类提示词时，现在需要手动 …
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你希望的行为
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及部分
+      multiple: true
+      options:
+        - 改写规则 / SYSTEM_PROMPT
+        - 对比卡片 UI
+        - 模型与温度
+        - 历史记录
+        - 安装与分发
+        - 其他

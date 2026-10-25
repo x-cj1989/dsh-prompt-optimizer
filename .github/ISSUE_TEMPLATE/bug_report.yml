@@ -1,0 +1,47 @@
+name: Bug report
+description: 报告一个可复现的问题
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先确认：`plugin_manager` 重装后已 **Ctrl+R 刷新页面**，且问题在刷新后仍能复现。
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH 版本
+      description: 控制台执行 `window.__DSH_BOOT__.version`，或看「插件」页底部
+      placeholder: "0.2.1-rc.3"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      placeholder: "Windows 11 / Desktop 客户端，Node 24"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 输入框写「帮我写个周报」
+        2. 点 ✨
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为（含控制台里 `[prompt-optimizer]` 开头的日志）
+      render: shell
+    validations:
+      required: true
