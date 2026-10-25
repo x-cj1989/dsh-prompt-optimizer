@@ -19,7 +19,7 @@ import { MODELS_ROUTE, ROUTE, createRoutes } from './lib/handler.js';
 import { LOG_PATH, hostLog } from './lib/hostlog.js';
 
 /** Keep in sync with package.json — `test/package.test.js` enforces it. */
-export const VERSION = '1.3.1';
+export const VERSION = '1.3.2';
 
 export function apply(ctx) {
   ctx.inject(['connection'], (scope) => {

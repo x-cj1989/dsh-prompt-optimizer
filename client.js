@@ -43,6 +43,7 @@ window.__ModuleLoader__.load({
       'action.short': '优化',
       'action.busy': '优化中',
       'action.view': '查看优化',
+      'action.hide': '收起',
       'action.retry': '重试',
       'tip.idle': '把当前输入改写为结构化的专业提示词，并先给你看对比',
       'tip.idleDirect': '把当前输入改写为结构化的专业提示词，并直接写回输入框',
@@ -91,6 +92,7 @@ window.__ModuleLoader__.load({
       'action.short': 'Optimize',
       'action.busy': 'Optimizing',
       'action.view': 'Show result',
+      'action.hide': 'Hide',
       'action.retry': 'Retry',
       'tip.idle': 'Rewrite the current draft into a structured prompt, shown as a diff first',
       'tip.idleDirect': 'Rewrite the current draft into a structured prompt and write it back into the composer',
@@ -661,10 +663,13 @@ window.__ModuleLoader__.load({
             api.patch({ status: 'error', visible: true, error: format(api.locale('error.failed'), { message: `> ${MAX_INPUT_CHARS}` }), source: draft, direct: false });
             return;
           }
+          const autoRun = state.autoWrite === true || direct;
           controller = new AbortController();
           api.patch({
             status: 'running',
-            visible: true,
+            // Direct write-back decides by itself, so the review panel stays
+            // closed unless the user opens it from the button.
+            visible: autoRun !== true,
             source: draft,
             result: '',
             partial: '',
@@ -697,7 +702,7 @@ window.__ModuleLoader__.load({
             });
             if (state.autoWrite === true || state.direct === true) {
               api.adopt();
-              api.patch({ autoAdopted: true });
+              api.patch({ autoAdopted: true, visible: false });
             }
           } catch (cause) {
             if (cause !== null && typeof cause === 'object' && cause.name === 'AbortError') {
@@ -895,6 +900,10 @@ window.__ModuleLoader__.load({
         const busy = state.status === 'running';
         const hasResult = state.status === 'ready' || state.status === 'adopted';
         const failed = state.status === 'error';
+        // The result only belongs to the draft it produced: once the composer
+        // holds that exact text the button is a show/hide control, and any other
+        // draft starts a new run.
+        const reviewing = hasResult && text !== '' && text === String(state.result ?? '').trim();
 
         // Publish the composer's own actions so the dock card can write back too,
         // even when it is mounted with a different prop set.
@@ -908,18 +917,26 @@ window.__ModuleLoader__.load({
             store.cancel();
             return;
           }
-          if (hasResult) {
+          if (reviewing) {
             store.toggleVisible();
             return;
           }
           const forceDirect = event !== null && typeof event === 'object' && (event.shiftKey === true || event.altKey === true);
           void store.start(text, props.sessionId, { direct: forceDirect });
-        }, [busy, hasResult, text, props.sessionId]);
+        }, [busy, reviewing, text, props.sessionId]);
 
-        const label = busy ? t('action.busy', '优化中') : hasResult ? t('action.view', '查看优化') : failed ? t('action.retry', '重试') : t('action.short', '优化');
+        const label = busy
+          ? t('action.busy', '优化中')
+          : reviewing
+            ? state.visible === true
+              ? t('action.hide', '收起')
+              : t('action.view', '查看优化')
+            : failed
+              ? t('action.retry', '重试')
+              : t('action.short', '优化');
         const title = busy
           ? t('tip.busy', '正在改写… 点按钮可取消')
-          : hasResult
+          : reviewing
             ? t('tip.view', '展开或收起优化对比')
             : failed
               ? format(t('tip.failed', '优化失败：{message}（点击重试）'), { message: state.error })

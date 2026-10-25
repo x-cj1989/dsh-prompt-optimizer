@@ -342,6 +342,9 @@ test('a finished run lands in the composer by itself when direct write is on', a
   await withFetch('# 角色\n写一份周报', () => store.start('写个周报', 's2'));
   assert.equal(store.get().status, 'adopted');
   assert.equal(store.get().autoAdopted, true);
+  // Direct write-back needs no decision, so the review panel stays closed and
+  // the user opens it only when they want to look at the diff.
+  assert.equal(store.get().visible, false);
   assert.deepEqual(written, ['# 角色\n写一份周报']);
 });
 
@@ -352,10 +355,18 @@ test('review mode waits for a click, Shift+click writes directly for one run', a
   store.setAutoWrite(false);
   await withFetch('改好的提示词', () => store.start('写个周报', 's3'));
   assert.equal(store.get().status, 'ready');
+  // Review mode still opens the panel: the user has to choose 采纳 / 放弃.
+  assert.equal(store.get().visible, true);
   assert.deepEqual(written, []);
 
   await withFetch('改好的提示词', () => store.start('写个周报', 's3', { direct: true }));
   assert.equal(store.get().status, 'adopted');
+  assert.equal(store.get().visible, false);
   assert.deepEqual(written, ['改好的提示词']);
+
+  store.toggleVisible();
+  assert.equal(store.get().visible, true);
+  store.toggleVisible();
+  assert.equal(store.get().visible, false);
 });
 

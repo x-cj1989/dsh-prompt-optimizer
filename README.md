@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml)
 [![](https://img.shields.io/badge/license-MIT-4c1?style=flat-square)](LICENSE)
-[![](https://img.shields.io/badge/version-1.3.1-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
+[![](https://img.shields.io/badge/version-1.3.2-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 输入框加一个 **✨「优化提示词」** 按钮：把随手写的一句话改写成结构化的专业提示词，**先看对比、再决定要不要写回**，写回是一步可撤销的编辑。
 
@@ -19,8 +19,9 @@
 
 ## 功能
 
-- **直接写回输入框（默认开）**：改写完成就落进输入框，不用再复制粘贴、也不用再点一次「采纳」；卡片仍会展开供你对照，`Ctrl+Z` 一步撤回。想先看再决定，点卡片里的「直接写入：开」切到审阅模式；审阅模式下 `Shift + 点击` 按钮可临时直接写入一次。
+- **直接写回输入框（默认开）**：改写完成就落进输入框，不用再复制粘贴、也不用再点一次「采纳」，**结果面板保持收起、不打断你**；想看差异或改主意时点一下按钮（此时显示「查看优化」）再展开。`Ctrl+Z` 一步撤回。想先看再决定，点卡片里的「直接写入：开」切到审阅模式；审阅模式下 `Shift + 点击` 按钮可临时直接写入一次。
 - **先预览后写回**：审阅模式下的行为——改写结果不直接覆盖你的草稿，而是在输入框下方展开对比卡片（左原文 / 右优化后，逐行高亮差异、统计字数增减），点「采纳并写入」才落到输入框；「放弃」什么都不做。
+- **按钮自己会变**：输入框内容就是上次的改写结果时，按钮是「查看优化 / 收起」；你一动输入框，按钮回到「优化」，可以直接对改过的文字再优化一轮。
 - **流式输出**：`text/event-stream` 逐字上屏，长提示词不用干等；网关不支持流式时自动回落到一次性 JSON。
 - **可撤销**：写回是一条 `captureInsertion + insertText` 编辑，`Ctrl+Z` 一步撤回；原文另存 `sessionStorage`（按会话，最多 10 条），刷新页面后「撤销」仍可用。
 - **模型可选**：面板里下拉选择 provider/model（列表来自 `llm.listModels`），默认跟随 profile 的 `agentDefaultModel`；选择记在 `localStorage`。
