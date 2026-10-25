@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Prompt Optimizer",
+    "description": "Adds an Optimize button to the composer tool row that rewrites the current draft into a structured, professional prompt with the default model."
+  }
+}
