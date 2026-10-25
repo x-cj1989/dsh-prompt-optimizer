@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml)
 [![](https://img.shields.io/badge/license-MIT-4c1?style=flat-square)](LICENSE)
-[![](https://img.shields.io/badge/version-1.5.0-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
+[![](https://img.shields.io/badge/version-1.5.1-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 输入框加一个 **✨「优化提示词」** 按钮：把随手写的一句话改写成结构化的专业提示词，**先看对比、再决定要不要写回**，写回是一步可撤销的编辑。
 
@@ -29,7 +29,7 @@
 - **设置页（1.5.0+）**：卡片右上角 ⚙，预设 / 候选数 / 最大长度 / 温度都在里面改，存 `~/.dsh/prompt-optimizer.json`，跨浏览器跨重启都在，不用改任何配置文件。
 - **多候选择优（1.5.0+）**：候选数 2–3 时并行生成多版，Host 端按「标题 + 列表 + `键: 值` + 长度」打分，自动挑结构最完整的一版，含占位符或口水话的会被扣分。
 - **历史 8 条**：改写过的原文可一键载入重跑，`localStorage` 里最多留 20 条，可清空。
-- **零依赖 + 80 个测试**：Host 规则、HTTP 路由、SSE 分帧、槽位注册、直接写入/采纳/撤销全部有单元测试，`npm test` 即可跑。
+- **零依赖 + 81 个测试**：Host 规则、HTTP 路由、SSE 分帧、槽位注册、直接写入/采纳/撤销全部有单元测试，`npm test` 即可跑。
 - **中英双语 UI**：字典注册到 Client `locale` 服务，切语言即时生效，查不到时回落内置中文。
 
 ## 安装
@@ -70,7 +70,7 @@ pnpm --dir ~/.dsh/profiles/<profile> add link:<本仓库的绝对路径>
 
 ## 设置页（1.5.0+）
 
-卡片右上角的 **⚙ 设置** 展开一个就地编辑条，改完点「保存」即可，不需要动 `cordis.patch.yml`，也不需要重启：
+输入框工具行里 ✨ 旁边的小 **⚙**（以及结果卡片右上角的 ⚙）打开设置页：展开一个就地编辑条，改完点「保存」即可，不需要动 `cordis.patch.yml`，也不需要重启：
 
 | 选项 | 可选值 | 默认 | 说明 |
 |---|---|---|---|
@@ -187,7 +187,7 @@ Host 日志（`%TEMP%\dsh-prompt-optimizer.log`）会记下每次实际用的 `p
 ## 开发与测试
 
 ```bash
-npm test        # node --test，80 个用例，无需安装依赖
+npm test        # node --test，81 个用例，无需安装依赖
 npm run check   # 五个入口文件的 node --check 语法检查
 npm run verify  # check + test
 ```

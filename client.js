@@ -181,6 +181,9 @@ window.__ModuleLoader__.load({
       '.dsh-po-btn:disabled{cursor:default;opacity:.32}',
       '.dsh-po-btn.is-active{opacity:1;border-color:color-mix(in srgb,currentColor 32%,transparent)}',
       '.dsh-po-btn.is-busy .dsh-po-glyph{animation:dsh-po-spin 1.15s linear infinite}',
+      '.dsh-po-gear{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:1px solid transparent;border-radius:999px;background:transparent;color:inherit;font:inherit;font-size:12px;line-height:1;cursor:pointer;opacity:.5;transition:opacity .12s ease,background .12s ease}',
+      '.dsh-po-gear:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transparent)}',
+      '.dsh-po-gear.is-on{opacity:1;border-color:color-mix(in srgb,currentColor 32%,transparent)}',
       '@keyframes dsh-po-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}',
       '.dsh-po-glyph{display:inline-block;flex:0 0 auto;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",system-ui,sans-serif;font-size:13px;line-height:1;font-style:normal}',
       '.dsh-po-label{white-space:nowrap}',
@@ -1146,6 +1149,22 @@ window.__ModuleLoader__.load({
             h(Glyph, { key: 'icon' }),
             h('span', { key: 'label', className: 'dsh-po-label' }, label),
           ),
+          // The settings page lives in the result card, but the card is hidden
+          // until there is something to show. This gear keeps the settings
+          // reachable before the very first rewrite.
+          h(
+            'button',
+            {
+              key: 'gear',
+              type: 'button',
+              className: `dsh-po-gear${state.settingsOpen === true ? ' is-on' : ''}`,
+              title: t('panel.settings', '设置'),
+              'aria-label': t('panel.settings', '设置'),
+              'aria-expanded': state.settingsOpen === true,
+              onClick: () => store.toggleSettings(),
+            },
+            h('span', { key: 'glyph', className: 'dsh-po-glyph', 'aria-hidden': true }, '\u2699'),
+          ),
         );
       };
     }
@@ -1196,7 +1215,7 @@ window.__ModuleLoader__.load({
         const header = h(
           'div',
           { key: 'head', className: 'dsh-po-head' },
-          h('span', { key: 'title', className: 'dsh-po-title' }, h(Glyph, { key: 'icon' }), t('panel.title', '优化结果')),
+          h('span', { key: 'title', className: 'dsh-po-title' }, h(Glyph, { key: 'icon' }), idle ? t('panel.settings', '设置') : t('panel.title', '优化结果')),
           h('span', { key: 'meta', className: 'dsh-po-meta' }, running ? t('panel.streaming', '生成中…') : `${state.provider === '' ? '' : state.provider}${state.model === '' ? '' : ` / ${state.model}`}`),
           h('span', { key: 'spacer', className: 'dsh-po-spacer' }),
           h('button', { key: 'settings', type: 'button', className: `dsh-po-ghost${state.settingsOpen === true ? ' is-on' : ''}`, onClick: () => store.toggleSettings(), title: t('panel.settings', '设置'), 'aria-label': t('panel.settings', '设置'), 'aria-pressed': state.settingsOpen === true }, '⚙'),

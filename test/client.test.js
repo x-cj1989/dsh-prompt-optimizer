@@ -180,9 +180,7 @@ test('the composer control renders and gates on an empty draft', () => {
   });
   assert.equal(element.type, 'div');
   assert.match(element.props.className, /dsh-po/);
-  const buttons = collect(element, (node) => node.type === 'button');
-  assert.equal(buttons.length, 1);
-  assert.equal(buttons[0].props.disabled, false);
+  // The optimize button comes first; a gear button next to it keeps the\n  // settings page reachable before the first rewrite exists.\n  const buttons = collect(element, (node) => node.type === 'button');\n  assert.equal(buttons.length, 2);\n  assert.equal(buttons[0].props.disabled, false);\n  assert.match(String(buttons[1].props.className), /dsh-po-gear/);
 
   const empty = Control({ useInput: (selector) => selector({ draft: '   ' }), inputActions: { setDraft() {} } });
   const emptyButtons = collect(empty, (node) => node.type === 'button');
@@ -486,4 +484,20 @@ test('a loaded settings panel hands temperature ownership to the host', async ()
   } finally {
     globalThis.fetch = original;
   }
+});
+
+test('the card opens for the settings page before any rewrite exists', async () => {
+  const { registered, store } = applyClient();
+  const Preview = registered[1].component;
+  assert.equal(Preview({}), null);
+  await withFetch('草稿', async () => {
+    store.toggleSettings();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+  const element = Preview({ useInput: (selector) => selector({ draft: '' }) });
+  assert.notEqual(element, null);
+  const texts = collect(element, (node) => typeof node === 'string');
+  assert.ok(texts.includes('设置'), `the settings title is missing: ${JSON.stringify(texts.slice(0, 12))}`);
+  const buttons = collect(element, (node) => typeof node?.type === 'string' && node.type === 'button');
+  assert.ok(buttons.some((node) => node.props.title === '设置'), 'the header settings toggle is missing');
 });

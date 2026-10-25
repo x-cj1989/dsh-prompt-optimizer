@@ -2,6 +2,12 @@
 
 本文件记录本插件所有值得注意的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.5.1] - 2026-10-25
+
+### 修复
+- **第一次优化之前打不开设置页**：设置页原本只挂在结果卡片里，而卡片在没有结果时渲染 `null`，于是全新装好的人根本点不到 ⚙。现在输入框工具行的 ✨ 旁边多了一个小 ⚙，点它就能在还没有任何改写结果时展开设置卡片（卡片标题显示「设置」），第一次改写之前也能先调好预设和温度。
+- 设置卡片在无结果状态下只渲染设置条，不出现空白对比列与没用的底部按钮。
+
 ## [1.5.0] - 2026-10-25
 
 ### 新增
@@ -96,6 +102,7 @@
 - 首个版本：输入框工具行右侧 ✨「优化提示词」按钮，POST `/api/prompt.optimize` 改写后写回输入框。
 - 基于 profile 默认模型（`agentDefaultModel.currentSelection()`）与 `llm.stream()`，不带任何第三方依赖。
 
+[1.5.1]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.5.1
 [1.5.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.5.0
 [1.4.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.4.0
 [1.3.2]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.3.2
