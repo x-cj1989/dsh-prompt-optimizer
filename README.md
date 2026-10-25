@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml)
 [![](https://img.shields.io/badge/license-MIT-4c1?style=flat-square)](LICENSE)
-[![](https://img.shields.io/badge/version-1.3.0-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
+[![](https://img.shields.io/badge/version-1.3.1-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 输入框加一个 **✨「优化提示词」** 按钮：把随手写的一句话改写成结构化的专业提示词，**先看对比、再决定要不要写回**，写回是一步可撤销的编辑。
 
@@ -131,6 +131,7 @@ client.js         Client 半 ─ 两个槽位
 | `No default model is selected in this profile` | profile 里没选默认模型，先选一个（或在卡片里手动选） |
 | 按钮根本不出现 | 刷新页面；仍不出现就查 `cordis.patch.yml` 里有没有这一条、包名是否 `@local/dsh-prompt-optimizer` |
 | 点了没反应，按钮变「重试」 | 悬停看完整原因；DevTools Console 里搜 `[prompt-optimizer]` |
+| 提示 `HTTP 404` | Host 半的路由没注册上。1.3.1 起会写面包屑日志：`%TEMP%\dsh-prompt-optimizer.log`，里面有 `registered route …` 就说明路由在；重新安装插件后需要重开一次 DSH（Host 半只随进程启动加载） |
 | 装完之后输入框的语音/其他小控件消失 | 客户端插件代际变旧，Ctrl+R 刷新页面即可恢复 |
 | 流式半天没字 | 网关不支持 SSE 时会自动回落一次性返回；若仍卡住，看 Network 里的 `prompt.optimize` 请求 |
 | 想确认鉴权通不通（不点按钮） | 控制台：`await (await fetch('api/prompt.optimize',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text:'帮我写个周报'})})).text()` |

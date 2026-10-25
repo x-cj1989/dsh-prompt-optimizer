@@ -413,6 +413,49 @@ window.__ModuleLoader__.load({
       return `HTTP ${response.status}`;
     }
 
+    /**
+     * Resolve the Host route against the page. `document.baseURI` is what the
+     * shipped connection runtime uses, but a shell served under a path prefix
+     * would resolve it elsewhere and the router would answer 404, so a 404
+     * retries once against the bare origin before giving up.
+     */
+    function baseCandidates() {
+      const bases = [];
+      try {
+        if (typeof document !== 'undefined' && typeof document.baseURI === 'string') bases.push(document.baseURI);
+      } catch {
+        /* no document */
+      }
+      try {
+        if (typeof location !== 'undefined' && typeof location.origin === 'string' && location.origin !== 'null') {
+          bases.push(`${location.origin}/`);
+        }
+      } catch {
+        /* no location */
+      }
+      const unique = [];
+      for (const base of bases) if (base !== '' && !unique.includes(base)) unique.push(base);
+      return unique;
+    }
+
+    let workingBase = null;
+
+    /** @returns {Promise<{ response: Response, url: string }>} */
+    async function apiFetch(path, init) {
+      const bases = workingBase === null ? baseCandidates() : [workingBase];
+      let attempt = null;
+      for (const base of bases) {
+        const url = new URL(path, base).toString();
+        const response = await fetch(url, init);
+        if (response.status !== 404) {
+          workingBase = base;
+          return { response, url };
+        }
+        attempt = { response, url };
+      }
+      return attempt ?? { response: new Response(null, { status: 404 }), url: path };
+    }
+
     async function optimizeRequest({ text, target, temperature, signal, onMeta, onDelta }) {
       const body = { text, temperature };
       if (target !== null && target !== undefined && target.provider !== '' && target.model !== '') {
@@ -421,14 +464,14 @@ window.__ModuleLoader__.load({
       }
       if (STREAMING) body.stream = true;
 
-      const response = await fetch(new URL(ROUTE, document.baseURI).toString(), {
+      const { response, url } = await apiFetch(ROUTE, {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
         signal,
       });
-      if (!response.ok) throw new RequestError(await readErrorDetail(response), response.status);
+      if (!response.ok) throw new RequestError(`${await readErrorDetail(response)} · POST ${url}`, response.status);
 
       const contentType = typeof response.headers?.get === 'function' ? response.headers.get('content-type') ?? '' : '';
       if (STREAMING && contentType.includes('text/event-stream') && typeof response.body?.getReader === 'function') {
@@ -474,13 +517,13 @@ window.__ModuleLoader__.load({
     }
 
     async function loadModels(signal) {
-      const response = await fetch(new URL(MODELS_ROUTE, document.baseURI).toString(), {
+      const { response, url } = await apiFetch(MODELS_ROUTE, {
         method: 'GET',
         credentials: 'same-origin',
         headers: { accept: 'application/json' },
         signal,
       });
-      if (!response.ok) throw new RequestError(await readErrorDetail(response), response.status);
+      if (!response.ok) throw new RequestError(`${await readErrorDetail(response)} · GET ${url}`, response.status);
       const payload = await response.json();
       const models = Array.isArray(payload?.models)
         ? payload.models.filter((item) => item !== null && typeof item === 'object' && typeof item.provider === 'string' && typeof item.model === 'string')

@@ -2,6 +2,13 @@
 
 本文件记录本插件所有值得注意的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.1] - 2026-10-25
+
+### 修复
+- **点击优化一律 HTTP 404**：Host 半的 `apply` 直接 `ctx.get('connection')` 探测服务，可能早于 connection 服务就绪，路由被静默跳过——客户端照常渲染，Host 路由却不存在，于是每个请求都 404。改为 `ctx.inject(['connection'], …)` 声明依赖，路由必然注册。
+- 客户端在 404 时会按 `location.origin` 再请求一次（兼容被路径前缀包裹的 shell），并把实际请求的 URL 写进错误信息，便于下次一眼定位。
+- Host 半新增面包屑日志 `%TEMP%\dsh-prompt-optimizer.log`（路由注册 / 请求路径 / 错误），不再依赖插件作者看不到的 stdout。
+
 ## [1.3.0] - 2026-10-25
 
 ### 新增
