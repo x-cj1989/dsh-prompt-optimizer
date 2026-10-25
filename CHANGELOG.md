@@ -2,6 +2,12 @@
 
 本文件记录本插件所有值得注意的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.1] - 2026-10-25
+
+### 修复
+- **按钮图标恢复为原本的 ✨**：1.2.0 把图标换成了内联 SVG，在宿主的输入行样式下会渲染成一个空白方框，看不出是什么。现在改回纯文本 `✨`（走系统 emoji 字体），并在旁边常显状态字（空闲「优化」/「优化中」/「查看优化」/「重试」），不会再出现无字按钮。
+- 新增一条回归测试，断言按钮里必须同时含 `✨` 与「优化」文案，防止图标再次被换掉。
+
 ## [1.2.0] - 2026-10-25
 
 ### 新增
@@ -40,6 +46,7 @@
 - 首个版本：输入框工具行右侧 ✨「优化提示词」按钮，POST `/api/prompt.optimize` 改写后写回输入框。
 - 基于 profile 默认模型（`agentDefaultModel.currentSelection()`）与 `llm.stream()`，不带任何第三方依赖。
 
+[1.2.1]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.2.1
 [1.2.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.2.0
 [1.1.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.1.0
 [1.0.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.0.0

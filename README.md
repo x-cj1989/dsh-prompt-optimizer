@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml)
 [![](https://img.shields.io/badge/license-MIT-4c1?style=flat-square)](LICENSE)
-[![](https://img.shields.io/badge/version-1.2.0-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
+[![](https://img.shields.io/badge/version-1.2.1-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 输入框加一个 **✨「优化提示词」** 按钮：把随手写的一句话改写成结构化的专业提示词，**先看对比、再决定要不要写回**，写回是一步可撤销的编辑。
 

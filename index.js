@@ -14,7 +14,7 @@
 import { MODELS_ROUTE, ROUTE, createRoutes } from './lib/handler.js';
 
 /** Keep in sync with package.json — `test/package.test.js` enforces it. */
-export const VERSION = '1.2.0';
+export const VERSION = '1.2.1';
 
 export function apply(ctx) {
   const connection = ctx.get('connection');

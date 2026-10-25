@@ -39,6 +39,7 @@ window.__ModuleLoader__.load({
     const ZH = {
       'slot.label': '优化提示词',
       'action.idle': '优化提示词',
+      'action.short': '优化',
       'action.busy': '优化中',
       'action.view': '查看优化',
       'action.retry': '重试',
@@ -81,6 +82,7 @@ window.__ModuleLoader__.load({
     const EN = {
       'slot.label': 'Optimize prompt',
       'action.idle': 'Optimize prompt',
+      'action.short': 'Optimize',
       'action.busy': 'Optimizing',
       'action.view': 'Show result',
       'action.retry': 'Retry',
@@ -126,9 +128,9 @@ window.__ModuleLoader__.load({
       '.dsh-po-btn:hover:not(:disabled){opacity:1;background:color-mix(in srgb,currentColor 12%,transparent)}',
       '.dsh-po-btn:disabled{cursor:default;opacity:.32}',
       '.dsh-po-btn.is-active{opacity:1;border-color:color-mix(in srgb,currentColor 32%,transparent)}',
-      '.dsh-po-btn.is-busy .dsh-po-icon{animation:dsh-po-spin 1.15s linear infinite}',
+      '.dsh-po-btn.is-busy .dsh-po-glyph{animation:dsh-po-spin 1.15s linear infinite}',
       '@keyframes dsh-po-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}',
-      '.dsh-po-icon{display:block;width:15px;height:15px;flex:0 0 auto}',
+      '.dsh-po-glyph{display:inline-block;flex:0 0 auto;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",system-ui,sans-serif;font-size:13px;line-height:1;font-style:normal}',
       '.dsh-po-label{white-space:nowrap}',
       '.dsh-po-error{max-width:24ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:1;color:#e06767}',
       '.dsh-po-card{flex:1 1 100%;box-sizing:border-box;width:100%;max-width:100%;margin:6px 0 0;border:1px solid color-mix(in srgb,currentColor 16%,transparent);border-radius:12px;background:color-mix(in srgb,currentColor 4%,transparent);font-size:12px;line-height:1.5;overflow:hidden}',
@@ -742,24 +744,11 @@ window.__ModuleLoader__.load({
 
     // ---------------------------------------------------------- components
 
-    function Sparkle(props) {
-      return h(
-        'svg',
-        {
-          className: 'dsh-po-icon',
-          viewBox: '0 0 24 24',
-          'aria-hidden': true,
-          fill: 'none',
-          stroke: 'currentColor',
-          strokeWidth: 1.6,
-          strokeLinecap: 'round',
-          strokeLinejoin: 'round',
-          width: props?.size ?? undefined,
-          height: props?.size ?? undefined,
-        },
-        h('path', { d: 'M12 3.5l1.7 4.6 4.6 1.7-4.6 1.7L12 16.1l-1.7-4.6L5.7 9.8l4.6-1.7z' }),
-        h('path', { d: 'M18.4 15.2l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8z' }),
-      );
+    // The mark the button has always used. It is plain text on purpose: an
+    // inline SVG could come out blank when the host styles the slot, while a
+    // text glyph inherits the row font and colour and stays legible.
+    function Glyph() {
+      return h('span', { className: 'dsh-po-glyph', 'aria-hidden': true }, '\u2728');
     }
 
     function useStore(store) {
@@ -800,7 +789,7 @@ window.__ModuleLoader__.load({
           void store.start(text, props.sessionId);
         }, [busy, hasResult, text, props.sessionId]);
 
-        const label = busy ? t('action.busy', '优化中') : hasResult ? t('action.view', '查看优化') : failed ? t('action.retry', '重试') : '';
+        const label = busy ? t('action.busy', '优化中') : hasResult ? t('action.view', '查看优化') : failed ? t('action.retry', '重试') : t('action.short', '优化');
         const title = busy
           ? t('tip.busy', '正在改写… 点按钮可取消')
           : hasResult
@@ -829,8 +818,8 @@ window.__ModuleLoader__.load({
               disabled: busy ? false : !canWrite || text === '',
               onClick,
             },
-            h(Sparkle, { key: 'icon' }),
-            label === '' ? null : h('span', { key: 'label', className: 'dsh-po-label' }, label),
+            h(Glyph, { key: 'icon' }),
+            h('span', { key: 'label', className: 'dsh-po-label' }, label),
           ),
         );
       };
@@ -879,7 +868,7 @@ window.__ModuleLoader__.load({
         const header = h(
           'div',
           { key: 'head', className: 'dsh-po-head' },
-          h('span', { key: 'title', className: 'dsh-po-title' }, h(Sparkle, { key: 'icon' }), t('panel.title', '优化结果')),
+          h('span', { key: 'title', className: 'dsh-po-title' }, h(Glyph, { key: 'icon' }), t('panel.title', '优化结果')),
           h('span', { key: 'meta', className: 'dsh-po-meta' }, running ? t('panel.streaming', '生成中…') : `${state.provider === '' ? '' : state.provider}${state.model === '' ? '' : ` / ${state.model}`}`),
           h('span', { key: 'spacer', className: 'dsh-po-spacer' }),
           h('button', { key: 'history', type: 'button', className: 'dsh-po-ghost', onClick: () => store.toggleHistory(), title: t('panel.history', '历史') }, `${t('panel.history', '历史')} ${state.history.length}`),

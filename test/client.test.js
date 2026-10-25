@@ -108,6 +108,12 @@ function walk(node, visit) {
     return;
   }
   visit(node);
+  // The fake createElement does not render, so function components are called
+  // here; the stubbed hooks are pure enough for one render pass.
+  if (typeof node.type === 'function') {
+    walk(node.type(node.props ?? {}), visit);
+    return;
+  }
   for (const child of node.children ?? []) walk(child, visit);
 }
 
@@ -148,6 +154,19 @@ test('apply registers the composer control, the preview card and both locales', 
     assert.equal(typeof entry.dict['panel.adopt'], 'string');
     assert.equal(typeof entry.dict['error.failed'], 'string');
   }
+});
+
+test('the composer control keeps the sparkle mark and a readable label', () => {
+  const { registered } = applyClient();
+  const Control = registered[0].component;
+  const element = Control({
+    useInput: (selector) => selector({ draft: '写个周报' }),
+    inputActions: { setDraft() {} },
+  });
+  const button = collect(element, (node) => node.type === 'button')[0];
+  const texts = collect(button, (node) => typeof node === 'string');
+  assert.ok(texts.includes('\u2728'), `the sparkle glyph is missing: ${JSON.stringify(texts)}`);
+  assert.ok(texts.includes('优化'), `the button label is missing: ${JSON.stringify(texts)}`);
 });
 
 test('the composer control renders and gates on an empty draft', () => {
