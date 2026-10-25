@@ -33,6 +33,7 @@ window.__ModuleLoader__.load({
     const HISTORY_LIMIT = 20;
     const TARGET_KEY = 'dsh-prompt-optimizer:target';
     const TEMPERATURE_KEY = 'dsh-prompt-optimizer:temperature';
+    const AUTO_WRITE_KEY = 'dsh-prompt-optimizer:auto-write';
     const DEFAULT_TEMPERATURE = 0.2;
     const REQUIRED_DSH = '0.2.0';
 
@@ -44,6 +45,7 @@ window.__ModuleLoader__.load({
       'action.view': '查看优化',
       'action.retry': '重试',
       'tip.idle': '把当前输入改写为结构化的专业提示词，并先给你看对比',
+      'tip.idleDirect': '把当前输入改写为结构化的专业提示词，并直接写回输入框',
       'tip.empty': '先在输入框写下你的需求，再点这里改写为专业提示词',
       'tip.busy': '正在改写… 点按钮可取消',
       'tip.view': '展开或收起优化对比',
@@ -65,6 +67,10 @@ window.__ModuleLoader__.load({
       'panel.copy': '复制',
       'panel.copied': '已复制',
       'panel.adopted': '已写入输入框（Ctrl+Z 可撤销）',
+      'panel.adoptedAuto': '已直接写入输入框，可直接发送（Ctrl+Z 撤销）',
+      'panel.autoWriteOn': '直接写入：开',
+      'panel.autoWriteOff': '直接写入：关',
+      'panel.autoWriteTip': '开着：优化完成就自动写回输入框；关掉：先给你看对比再决定（Shift+点击按钮可临时直接写入）',
       'panel.adoptedCopy': '当前环境无法写回输入框，已复制到剪贴板',
       'panel.undo': '撤销这次采纳',
       'panel.model': '模型',
@@ -87,6 +93,7 @@ window.__ModuleLoader__.load({
       'action.view': 'Show result',
       'action.retry': 'Retry',
       'tip.idle': 'Rewrite the current draft into a structured prompt, shown as a diff first',
+      'tip.idleDirect': 'Rewrite the current draft into a structured prompt and write it back into the composer',
       'tip.empty': 'Write what you need first, then click here to rewrite it as a prompt',
       'tip.busy': 'Rewriting… click the button to cancel',
       'tip.view': 'Expand or collapse the before/after comparison',
@@ -108,6 +115,10 @@ window.__ModuleLoader__.load({
       'panel.copy': 'Copy',
       'panel.copied': 'Copied',
       'panel.adopted': 'Written to the composer (Ctrl+Z to undo)',
+      'panel.adoptedAuto': 'Written straight into the composer — send it, or press Ctrl+Z to undo',
+      'panel.autoWriteOn': 'Direct write: on',
+      'panel.autoWriteOff': 'Direct write: off',
+      'panel.autoWriteTip': 'On: the rewrite lands in the composer as soon as it is ready. Off: review the diff first (Shift+click the button to write directly once)',
       'panel.adoptedCopy': 'Could not write to the composer here — copied to the clipboard',
       'panel.undo': 'Undo this adoption',
       'panel.model': 'Model',
@@ -140,6 +151,7 @@ window.__ModuleLoader__.load({
       '.dsh-po-spacer{flex:1 1 auto}',
       '.dsh-po-ghost{height:24px;padding:0 8px;border:1px solid color-mix(in srgb,currentColor 20%,transparent);border-radius:8px;background:transparent;color:inherit;font:inherit;font-size:11px;line-height:1;cursor:pointer;opacity:.75}',
       '.dsh-po-ghost:hover{opacity:1;background:color-mix(in srgb,currentColor 10%,transparent)}',
+      '.dsh-po-ghost.is-on{opacity:1;border-color:color-mix(in srgb,#2f9e44 55%,transparent);color:#2f9e44}',
       '.dsh-po-body{max-height:min(42vh,320px);overflow:auto;padding:0 10px}',
       '.dsh-po-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 10px;align-items:start}',
       '.dsh-po-colhead{position:sticky;top:0;z-index:1;padding:6px 0 4px;font-size:11px;font-weight:600;opacity:.66;background:color-mix(in srgb,currentColor 4%,transparent)}',
@@ -338,6 +350,16 @@ window.__ModuleLoader__.load({
       return typeof value === 'number' && Number.isFinite(value) ? value : DEFAULT_TEMPERATURE;
     }
 
+    /**
+     * Direct write-back is the default: the point of the feature is that the
+     * rewrite lands in the composer without a second click. Review-first mode is
+     * one persisted toggle away, and Shift+click forces it for a single run.
+     */
+    function readAutoWrite() {
+      const value = readJson(AUTO_WRITE_KEY, null);
+      return typeof value === 'boolean' ? value : true;
+    }
+
     // ------------------------------------------------------------- version
 
     function readBootVersion() {
@@ -487,10 +509,31 @@ window.__ModuleLoader__.load({
         historyOpen: false,
         adopted: false,
         copied: false,
+        autoWrite: readAutoWrite(),
+        /** Set for one run by Shift+click: write directly even in review mode. */
+        direct: false,
+        /** True when the last adoption happened without a click. */
+        autoAdopted: false,
+        /** `{inputActions, sessionId}` published by the composer control. */
+        writer: null,
         version: readBootVersion(),
       };
       const listeners = new Set();
       let controller = null;
+
+      /**
+       * Prefer the actions passed by the caller (the composer control holds the
+       * live ones); otherwise fall back to whatever the control published.
+       */
+      function resolveWriter(passed) {
+        const candidate = passed !== null && typeof passed === 'object' ? passed : null;
+        const usable = (value) =>
+          value !== null &&
+          typeof value === 'object' &&
+          (typeof value.inputActions?.setDraft === 'function' || typeof value.inputActions?.insertText === 'function');
+        const chosen = usable(candidate) ? candidate : usable(state.writer) ? state.writer : {};
+        return { inputActions: chosen.inputActions ?? null, sessionId: chosen.sessionId };
+      }
 
       const api = {
         get: () => state,
@@ -537,16 +580,42 @@ window.__ModuleLoader__.load({
           api.patch({ temperature });
         },
 
+        /**
+         * The composer control is the only component guaranteed to hold
+         * `inputActions`; the dock card may be mounted without them. Publishing
+         * the writer here is what makes "write straight into the composer" work
+         * from the card's buttons too.
+         */
+        setWriter(writer) {
+          state.writer = writer ?? null;
+        },
+
+        clearWriter() {
+          state.writer = null;
+        },
+
+        setAutoWrite(autoWrite) {
+          const next = autoWrite === true;
+          writeJson(AUTO_WRITE_KEY, next);
+          api.patch({ autoWrite: next, direct: false });
+          if (next === true && state.status === 'ready') api.adopt();
+        },
+
+        toggleAutoWrite() {
+          api.setAutoWrite(state.autoWrite !== true);
+        },
+
         cancel() {
           if (controller !== null) controller.abort();
         },
 
-        async start(text, sessionId) {
+        async start(text, sessionId, options) {
           if (state.status === 'running') return;
           const draft = String(text ?? '').trim();
+          const direct = options !== null && typeof options === 'object' && options.direct === true;
           if (draft === '') return;
           if (countChars(draft) > MAX_INPUT_CHARS) {
-            api.patch({ status: 'error', visible: true, error: format(api.locale('error.failed'), { message: `> ${MAX_INPUT_CHARS}` }), source: draft });
+            api.patch({ status: 'error', visible: true, error: format(api.locale('error.failed'), { message: `> ${MAX_INPUT_CHARS}` }), source: draft, direct: false });
             return;
           }
           controller = new AbortController();
@@ -559,6 +628,7 @@ window.__ModuleLoader__.load({
             error: '',
             adopted: false,
             copied: false,
+            direct,
             provider: state.target === null ? state.provider : state.target.provider,
             model: state.target === null ? state.model : state.target.model,
           });
@@ -582,6 +652,10 @@ window.__ModuleLoader__.load({
               model: typeof outcome.model === 'string' && outcome.model !== '' ? outcome.model : state.model,
               history: pushHistory({ ts: Date.now(), source: draft, result: text_, provider: outcome.provider ?? '', model: outcome.model ?? '', sessionId: sessionId === undefined ? '' : String(sessionId) }),
             });
+            if (state.autoWrite === true || state.direct === true) {
+              api.adopt();
+              api.patch({ autoAdopted: true });
+            }
           } catch (cause) {
             if (cause !== null && typeof cause === 'object' && cause.name === 'AbortError') {
               api.patch({ status: 'idle', visible: false, partial: '' });
@@ -604,27 +678,29 @@ window.__ModuleLoader__.load({
           return api.start(state.source, sessionId);
         },
 
-        adopt({ inputActions, sessionId }) {
-          if (state.result.trim() === '') return;
-          const wrote = applyDraft(inputActions, state.result);
+        adopt(passed) {
+          if (state.result.trim() === '') return false;
+          const writer = resolveWriter(passed);
+          const wrote = applyDraft(writer.inputActions, state.result);
           if (wrote) {
-            stashPush(sessionId, { original: state.source, optimized: state.result });
+            stashPush(writer.sessionId, { original: state.source, optimized: state.result });
           } else {
             copyText(state.result);
-            api.patch({ copied: true });
           }
-          api.patch({ status: 'adopted', adopted: wrote });
+          api.patch({ status: 'adopted', adopted: wrote, copied: wrote !== true, direct: false, autoAdopted: false });
+          return wrote;
         },
 
-        undo({ inputActions, sessionId }) {
-          if (typeof inputActions?.setDraft === 'function') inputActions.setDraft(state.source);
-          stashPop(sessionId);
-          api.patch({ status: 'ready', adopted: false });
+        undo(passed) {
+          const writer = resolveWriter(passed);
+          if (typeof writer.inputActions?.setDraft === 'function') writer.inputActions.setDraft(state.source);
+          stashPop(writer.sessionId);
+          api.patch({ status: 'ready', adopted: false, copied: false, direct: false, autoAdopted: false });
         },
 
         discard() {
           if (controller !== null) controller.abort();
-          api.patch({ status: 'idle', visible: false, partial: '', error: '', adopted: false, copied: false });
+          api.patch({ status: 'idle', visible: false, partial: '', error: '', adopted: false, copied: false, direct: false, autoAdopted: false });
         },
 
         toggleHistory() {
@@ -634,7 +710,7 @@ window.__ModuleLoader__.load({
         loadEntry(index) {
           const entry = state.history[index];
           if (entry === undefined) return;
-          api.patch({ status: 'ready', visible: true, source: entry.source, result: entry.result, partial: entry.result, provider: entry.provider ?? '', model: entry.model ?? '', error: '', adopted: false, historyOpen: false });
+          api.patch({ status: 'ready', visible: true, source: entry.source, result: entry.result, partial: entry.result, provider: entry.provider ?? '', model: entry.model ?? '', error: '', adopted: false, copied: false, autoAdopted: false, historyOpen: false });
         },
 
         clearHistory() {
@@ -777,7 +853,14 @@ window.__ModuleLoader__.load({
         const hasResult = state.status === 'ready' || state.status === 'adopted';
         const failed = state.status === 'error';
 
-        const onClick = React.useCallback(() => {
+        // Publish the composer's own actions so the dock card can write back too,
+        // even when it is mounted with a different prop set.
+        React.useEffect(() => {
+          store.setWriter({ inputActions: props.inputActions, sessionId: props.sessionId });
+          return () => store.clearWriter();
+        }, [props.inputActions, props.sessionId]);
+
+        const onClick = React.useCallback((event) => {
           if (busy) {
             store.cancel();
             return;
@@ -786,7 +869,8 @@ window.__ModuleLoader__.load({
             store.toggleVisible();
             return;
           }
-          void store.start(text, props.sessionId);
+          const forceDirect = event !== null && typeof event === 'object' && (event.shiftKey === true || event.altKey === true);
+          void store.start(text, props.sessionId, { direct: forceDirect });
         }, [busy, hasResult, text, props.sessionId]);
 
         const label = busy ? t('action.busy', '优化中') : hasResult ? t('action.view', '查看优化') : failed ? t('action.retry', '重试') : t('action.short', '优化');
@@ -798,7 +882,9 @@ window.__ModuleLoader__.load({
               ? format(t('tip.failed', '优化失败：{message}（点击重试）'), { message: state.error })
               : text === ''
                 ? t('tip.empty', '先在输入框写下你的需求')
-                : t('tip.idle', '把当前输入改写为结构化的专业提示词，并先给你看对比');
+                : state.autoWrite === true
+                  ? t('tip.idleDirect', '把当前输入改写为结构化的专业提示词，并直接写回输入框')
+                  : t('tip.idle', '把当前输入改写为结构化的专业提示词，并先给你看对比');
 
         return h(
           'div',
@@ -901,7 +987,7 @@ window.__ModuleLoader__.load({
           { key: 'foot', className: 'dsh-po-foot' },
           running || failed
             ? h('button', { key: 'primary', type: 'button', className: 'dsh-po-ghost', onClick: () => store.discard() }, t('panel.discard', '放弃'))
-            : h('button', { key: 'primary', type: 'button', className: 'dsh-po-primary', disabled: state.adopted === true, onClick: () => store.adopt({ inputActions: props.inputActions, sessionId: props.sessionId }) }, state.adopted === true ? t('panel.adopted', '已写入输入框（Ctrl+Z 可撤销）') : t('panel.adopt', '采纳并写入')),
+            : h('button', { key: 'primary', type: 'button', className: 'dsh-po-primary', disabled: state.adopted === true, onClick: () => store.adopt({ inputActions: props.inputActions, sessionId: props.sessionId }) }, state.adopted === true ? (state.autoAdopted === true ? t('panel.adoptedAuto', '已直接写入输入框，可直接发送（Ctrl+Z 撤销）') : t('panel.adopted', '已写入输入框（Ctrl+Z 可撤销）')) : t('panel.adopt', '采纳并写入')),
           ready && state.adopted === true
             ? h('button', { key: 'undo', type: 'button', className: 'dsh-po-ghost', onClick: () => store.undo({ inputActions: props.inputActions, sessionId: props.sessionId }) }, t('panel.undo', '撤销这次采纳'))
             : null,
@@ -913,6 +999,14 @@ window.__ModuleLoader__.load({
           ready
             ? h('button', { key: 'copy', type: 'button', className: 'dsh-po-ghost', onClick: () => store.copyResult() }, state.copied ? t('panel.copied', '已复制') : t('panel.copy', '复制'))
             : null,
+          h('button', {
+            key: 'autowrite',
+            type: 'button',
+            className: `dsh-po-ghost${state.autoWrite === true ? ' is-on' : ''}`,
+            'aria-pressed': state.autoWrite === true,
+            title: t('panel.autoWriteTip', '开着：优化完成就自动写回输入框；关掉：先给你看对比再决定（Shift+点击按钮可临时直接写入）'),
+            onClick: () => store.toggleAutoWrite(),
+          }, state.autoWrite === true ? t('panel.autoWriteOn', '直接写入：开') : t('panel.autoWriteOff', '直接写入：关')),
           h('span', { key: 'spacer', className: 'dsh-po-spacer' }),
           stats,
         );

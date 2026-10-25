@@ -289,3 +289,73 @@ test('applyDraft is a no-op when the composer exposes no writer', () => {
   assert.equal(internals().applyDraft({}, 'text'), false);
   assert.equal(internals().applyDraft(undefined, 'text'), false);
 });
+
+function stubFetch(text) {
+  return async (input, init) => {
+    const method = String(init?.method ?? 'GET').toUpperCase();
+    if (method === 'GET') {
+      return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => ({ models: [], default: null }) };
+    }
+    return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => ({ text, provider: 'provider-a', model: 'model-b' }) };
+  };
+}
+
+async function withFetch(text, run) {
+  const original = globalThis.fetch;
+  globalThis.fetch = stubFetch(text);
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = original;
+  }
+}
+
+test('direct write-back is on by default and can be turned off', () => {
+  window.localStorage.removeItem('dsh-prompt-optimizer:auto-write');
+  const { store } = applyClient();
+  assert.equal(store.get().autoWrite, true);
+  store.setAutoWrite(false);
+  assert.equal(store.get().autoWrite, false);
+  assert.equal(window.localStorage.getItem('dsh-prompt-optimizer:auto-write'), 'false');
+  store.setAutoWrite(true);
+  assert.equal(window.localStorage.getItem('dsh-prompt-optimizer:auto-write'), 'true');
+});
+
+test('the writer published by the composer control is used without props', () => {
+  const { store } = applyClient();
+  const calls = [];
+  store.setWriter({ inputActions: { setDraft: (text) => calls.push(text) }, sessionId: 's1' });
+  store.patch({ status: 'ready', visible: true, source: 'old', result: 'new' });
+  assert.equal(store.adopt(), true);
+  assert.deepEqual(calls, ['new']);
+  assert.equal(store.get().status, 'adopted');
+  store.undo();
+  assert.deepEqual(calls, ['new', 'old']);
+  assert.equal(store.get().status, 'ready');
+});
+
+test('a finished run lands in the composer by itself when direct write is on', async () => {
+  const { store } = applyClient();
+  const written = [];
+  store.setWriter({ inputActions: { setDraft: (text) => written.push(text) }, sessionId: 's2' });
+  store.setAutoWrite(true);
+  await withFetch('# 角色\n写一份周报', () => store.start('写个周报', 's2'));
+  assert.equal(store.get().status, 'adopted');
+  assert.equal(store.get().autoAdopted, true);
+  assert.deepEqual(written, ['# 角色\n写一份周报']);
+});
+
+test('review mode waits for a click, Shift+click writes directly for one run', async () => {
+  const { store } = applyClient();
+  const written = [];
+  store.setWriter({ inputActions: { setDraft: (text) => written.push(text) }, sessionId: 's3' });
+  store.setAutoWrite(false);
+  await withFetch('改好的提示词', () => store.start('写个周报', 's3'));
+  assert.equal(store.get().status, 'ready');
+  assert.deepEqual(written, []);
+
+  await withFetch('改好的提示词', () => store.start('写个周报', 's3', { direct: true }));
+  assert.equal(store.get().status, 'adopted');
+  assert.deepEqual(written, ['改好的提示词']);
+});
+

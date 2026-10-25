@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml)
 [![](https://img.shields.io/badge/license-MIT-4c1?style=flat-square)](LICENSE)
-[![](https://img.shields.io/badge/version-1.2.1-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
+[![](https://img.shields.io/badge/version-1.3.0-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 输入框加一个 **✨「优化提示词」** 按钮：把随手写的一句话改写成结构化的专业提示词，**先看对比、再决定要不要写回**，写回是一步可撤销的编辑。
 
@@ -19,13 +19,14 @@
 
 ## 功能
 
-- **先预览后写回**：改写结果不直接覆盖你的草稿，而是在输入框下方展开对比卡片（左原文 / 右优化后，逐行高亮差异、统计字数增减），点「采纳并写入」才落到输入框；「放弃」什么都不做。
+- **直接写回输入框（默认开）**：改写完成就落进输入框，不用再复制粘贴、也不用再点一次「采纳」；卡片仍会展开供你对照，`Ctrl+Z` 一步撤回。想先看再决定，点卡片里的「直接写入：开」切到审阅模式；审阅模式下 `Shift + 点击` 按钮可临时直接写入一次。
+- **先预览后写回**：审阅模式下的行为——改写结果不直接覆盖你的草稿，而是在输入框下方展开对比卡片（左原文 / 右优化后，逐行高亮差异、统计字数增减），点「采纳并写入」才落到输入框；「放弃」什么都不做。
 - **流式输出**：`text/event-stream` 逐字上屏，长提示词不用干等；网关不支持流式时自动回落到一次性 JSON。
 - **可撤销**：写回是一条 `captureInsertion + insertText` 编辑，`Ctrl+Z` 一步撤回；原文另存 `sessionStorage`（按会话，最多 10 条），刷新页面后「撤销」仍可用。
 - **模型可选**：面板里下拉选择 provider/model（列表来自 `llm.listModels`），默认跟随 profile 的 `agentDefaultModel`；选择记在 `localStorage`。
 - **温度可选**：`0 ~ 1`，默认 `0.2`（改写是收敛任务，低温度让同一稿两次结果基本一致）。
 - **历史 8 条**：改写过的原文可一键载入重跑，`localStorage` 里最多留 20 条，可清空。
-- **零依赖 + 52 个测试**：Host 规则、HTTP 路由、SSE 分帧、槽位注册、采纳/撤销全部有单元测试，`npm test` 即可跑。
+- **零依赖 + 57 个测试**：Host 规则、HTTP 路由、SSE 分帧、槽位注册、直接写入/采纳/撤销全部有单元测试，`npm test` 即可跑。
 - **中英双语 UI**：字典注册到 Client `locale` 服务，切语言即时生效，查不到时回落内置中文。
 
 ## 安装
@@ -60,8 +61,8 @@ pnpm --dir ~/.dsh/profiles/<profile> add link:<本仓库的绝对路径>
 
 1. 在输入框写点什么（空草稿时按钮是禁用的，避免空跑一次模型）。
 2. 点 ✨ → 按钮变「优化中」（再点一次可取消），下方卡片开始流式出现改写结果。
-3. 看对比：红色是删掉的原文行，蓝色是改写后的行，标题旁有 `字数 32 → 210（+178）`。
-4. **采纳并写入** / **放弃** / **重新优化**；写错了在输入框里 `Ctrl+Z` 撤回。
+3. **默认直接写入**：改写一结束，输入框里的草稿就被替换成专业提示词，直接回车发送即可；写错了 `Ctrl+Z` 撤回，卡片里也有「撤销这次采纳」。
+4. 卡片照常显示对比（红色删掉的行 / 蓝色改写后的行 / `字数 32 → 210（+178）`），想改成审阅模式就点「直接写入：开」；审阅模式下先看对比，再点「采纳并写入」。
 5. 想换模型或温度，直接在卡片底部改，下次沿用。
 
 ## 隐私
