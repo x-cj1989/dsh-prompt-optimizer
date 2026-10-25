@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/x-cj1989/dsh-prompt-optimizer/actions/workflows/ci.yml)
 [![](https://img.shields.io/badge/license-MIT-4c1?style=flat-square)](LICENSE)
-[![](https://img.shields.io/badge/version-1.3.2-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
+[![](https://img.shields.io/badge/version-1.5.0-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/releases)
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 输入框加一个 **✨「优化提示词」** 按钮：把随手写的一句话改写成结构化的专业提示词，**先看对比、再决定要不要写回**，写回是一步可撤销的编辑。
 
@@ -26,8 +26,10 @@
 - **可撤销**：写回是一条 `captureInsertion + insertText` 编辑，`Ctrl+Z` 一步撤回；原文另存 `sessionStorage`（按会话，最多 10 条），刷新页面后「撤销」仍可用。
 - **模型可选**：面板里下拉选择 provider/model（列表来自 `llm.listModels`），默认跟随 profile 的 `agentDefaultModel`；选择记在 `localStorage`。
 - **温度可选**：`0 ~ 1`，默认 `0.2`（改写是收敛任务，低温度让同一稿两次结果基本一致）。
+- **设置页（1.5.0+）**：卡片右上角 ⚙，预设 / 候选数 / 最大长度 / 温度都在里面改，存 `~/.dsh/prompt-optimizer.json`，跨浏览器跨重启都在，不用改任何配置文件。
+- **多候选择优（1.5.0+）**：候选数 2–3 时并行生成多版，Host 端按「标题 + 列表 + `键: 值` + 长度」打分，自动挑结构最完整的一版，含占位符或口水话的会被扣分。
 - **历史 8 条**：改写过的原文可一键载入重跑，`localStorage` 里最多留 20 条，可清空。
-- **零依赖 + 57 个测试**：Host 规则、HTTP 路由、SSE 分帧、槽位注册、直接写入/采纳/撤销全部有单元测试，`npm test` 即可跑。
+- **零依赖 + 80 个测试**：Host 规则、HTTP 路由、SSE 分帧、槽位注册、直接写入/采纳/撤销全部有单元测试，`npm test` 即可跑。
 - **中英双语 UI**：字典注册到 Client `locale` 服务，切语言即时生效，查不到时回落内置中文。
 
 ## 安装
@@ -64,7 +66,22 @@ pnpm --dir ~/.dsh/profiles/<profile> add link:<本仓库的绝对路径>
 2. 点 ✨ → 按钮变「优化中」（再点一次可取消），下方卡片开始流式出现改写结果。
 3. **默认直接写入**：改写一结束，输入框里的草稿就被替换成专业提示词，直接回车发送即可；写错了 `Ctrl+Z` 撤回，卡片里也有「撤销这次采纳」。
 4. 卡片照常显示对比（红色删掉的行 / 蓝色改写后的行 / `字数 32 → 210（+178）`），想改成审阅模式就点「直接写入：开」；审阅模式下先看对比，再点「采纳并写入」。
-5. 想换模型或温度，直接在卡片底部改，下次沿用。
+5. 卡片底部的模型下拉只决定这一次用哪个模型；温度、预设这些固定偏好点卡片右上角的 **⚙ 设置**（下一节）。
+
+## 设置页（1.5.0+）
+
+卡片右上角的 **⚙ 设置** 展开一个就地编辑条，改完点「保存」即可，不需要动 `cordis.patch.yml`，也不需要重启：
+
+| 选项 | 可选值 | 默认 | 说明 |
+|---|---|---|---|
+| 预设 | 通用 / 写作 / 编程 / 分析 / 智能体任务 | 通用 | 在基础改写规则上追加一段该场景的取向说明（例如编程场景强调「验收标准与错误处理」） |
+| 候选数 | 1 / 2 / 3 | 1 | 并行生成多版，Host 按结构完整度打分挑最好的一版，其余丢弃 |
+| 最大长度 | 800 / 1600 / 2400 / 3200 | 1600 | 单次输出的 token 上限 |
+| 温度 | 0.2 稳定 / 0.5 / 0.7 灵活 / 1.0 | 0.2 | 改写是收敛任务，低温度让同一稿两次结果基本一致 |
+
+- 设置存在 `~/.dsh/prompt-optimizer.json`（原子写入：先写临时文件再改名），**换浏览器、重启应用都还在**；「恢复默认」会把文件写回出厂值。
+- 读不到设置时面板显示「设置读取失败」+「重试」，不会静默吞掉错误。
+- 设置页一旦成功读到配置，温度就交给 Host 决定（客户端不再自己发温度），避免 `localStorage` 与磁盘文件互相打架。
 
 ## 隐私
 
@@ -87,10 +104,12 @@ pnpm --dir ~/.dsh/profiles/<profile> add link:<本仓库的绝对路径>
 两个半边，都在同一个组合包里：
 
 ```
-index.js          Host 半 ─ 把 lib/handler.js 的两条路由挂到已认证 Web 桥
-                  ├ POST /api/prompt.optimize       改写（JSON 或 SSE）
-                  └ GET  /api/prompt.optimize/models 模型目录 + profile 默认
-lib/rewrite.js    纯规则：校验、字数预算、去围栏、温度夹取、SYSTEM_PROMPT
+index.js          Host 半 ─ 把 lib/handler.js 的三条路由挂到已认证 Web 桥
+                  ├ POST /api/prompt.optimize          改写（JSON 或 SSE）
+                  ├ GET  /api/prompt.optimize/models   模型目录 + profile 默认
+                  └ GET/POST /api/prompt.optimize/settings 读取 / 保存偏好
+lib/rewrite.js    纯规则：校验、字数预算、去围栏、温度夹取、预设、候选打分、SYSTEM_PROMPT
+lib/settings.js   ~/.dsh/prompt-optimizer.json 的原子读写与校验
 lib/handler.js    Request → Response：405/400/413/502/503、SSE 帧、超时合并
 client.js         Client 半 ─ 两个槽位
                   ├ conversation.input.right   ✨ 按钮（order 20）
@@ -110,10 +129,38 @@ client.js         Client 半 ─ 两个槽位
 | `lib/rewrite.js` | `DEFAULT_TEMPERATURE` | `0.2` | 改写是收敛任务 |
 | `lib/rewrite.js` | `TIMEOUT_MS` | `120000` | 单次调用超时（与页面取消信号合并） |
 | `lib/rewrite.js` | `SYSTEM_PROMPT` | 见文件 | 改写规则本身，想改风格就改这里 |
-| `lib/handler.js` | `ROUTE` / `MODELS_ROUTE` | `/api/prompt.optimize`… | Host 侧路由路径 |
+| `lib/handler.js` | `ROUTE` / `MODELS_ROUTE` / `SETTINGS_ROUTE` | `/api/prompt.optimize`… | Host 侧路由路径 |
+| `lib/settings.js` | `SETTINGS_FILE_NAME` | `prompt-optimizer.json` | 偏好文件名，落在 `~/.dsh/` 下（设置页改的就是它） |
 | `client.js` | `BUTTON_SLOT` / `PREVIEW_SLOT` | 见上 | 想挪位置就换槽位 |
 | `client.js` | `ROUTE` | `api/prompt.optimize` | 相对路径，反代子路径下也成立 |
 | `client.js` | `REQUIRED_DSH` | `0.2.0` | 兼容性下限 |
+| `cordis.patch.yml` | `config.provider` / `config.model` | 空 | 钉死改写模型；留空则跟随对话 |
+| `cordis.patch.yml` | `config.temperature` | 空（用 `0.2`） | 钉死温度，仍会被设置页覆盖 |
+
+### 模型是怎么选的（1.4.0+）
+
+改写用的模型按下面的顺序解析，前面命中就停：
+
+| 顺序 | 来源 | 什么时候用它 |
+|---|---|---|
+| 1 | 请求里的 `provider` / `model` | 默认就是**对话框里当前选中的模型**（读 `modelSelection` 投影），或你在结果卡片下拉里手动钉的模型 |
+| 2 | 插件配置 | patch 行里写了 `config: { provider, model }` |
+| 3 | profile 默认 | `agentDefaultModel.currentSelection()` |
+| 4 | LLM 服务公布的第一个模型 | 上面都没有时兜底，**全新机器零配置也能用** |
+
+Host 日志（`%TEMP%\dsh-prompt-optimizer.log`）会记下每次实际用的 `provider / model` 和来源级别（`request` / `config` / `profile` / `catalogue`）。只有连一个模型都列不出来时才返回 503。
+
+想钉死模型又不改代码，在 `cordis.patch.yml` 的插件行里加 `config` 即可：
+
+```yaml
+- insert:
+    - id: prompt-optimizer
+      name: '@local/dsh-prompt-optimizer'
+      config:
+        provider: deepseek-account
+        model: deepseek-chat
+        temperature: 0.3
+```
 
 改写规则（不是简单润色）：
 
@@ -140,12 +187,12 @@ client.js         Client 半 ─ 两个槽位
 ## 开发与测试
 
 ```bash
-npm test        # node --test，52 个用例，无需安装依赖
-npm run check   # 四个入口文件的 node --check 语法检查
+npm test        # node --test，80 个用例，无需安装依赖
+npm run check   # 五个入口文件的 node --check 语法检查
 npm run verify  # check + test
 ```
 
-- 测试用 Node 内置 runner，零依赖：`test/rewrite.test.js`（规则）、`test/handler.test.js`（路由/SSE/错误码）、`test/client.test.js`（伪浏览器里加载 `client.js`，验证槽位注册、diff、SSE 分帧、采纳与撤销）、`test/package.test.js`（清单/文件列表/双语字典/README 结构一致性）。
+- 测试用 Node 内置 runner，零依赖：`test/rewrite.test.js`（规则/预设/候选打分）、`test/handler.test.js`（路由/SSE/错误码/设置读写）、`test/settings.test.js`（设置文件的合并、校验、原子写入）、`test/client.test.js`（伪浏览器里加载 `client.js`，验证槽位注册、diff、SSE 分帧、采纳与撤销、设置面板读写）、`test/package.test.js`（清单/文件列表/双语字典/README 结构一致性）。
 - 改完代码用 `plugin_manager` 重装一次（先 `remove_bundle`），再 Ctrl+R 刷新页面看效果。
 
 ## 目录结构
@@ -156,7 +203,8 @@ npm run verify  # check + test
 ├── cordis.patch.yml     Loader 补丁：把本插件插进 profile
 ├── index.js             Host 半入口（挂路由）
 ├── lib/rewrite.js       纯改写规则与校验
-├── lib/handler.js       两条路由的 Request → Response 实现
+├── lib/settings.js      偏好文件的原子读写
+├── lib/handler.js       三条路由的 Request → Response 实现
 ├── client.js            Client 半（按钮 + 对比卡片）
 ├── locale/{en,zh}.json  插件在「插件」页里的标题与描述
 ├── icon.svg             插件图标

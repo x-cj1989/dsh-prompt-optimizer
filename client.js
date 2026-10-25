@@ -24,6 +24,7 @@ window.__ModuleLoader__.load({
     /** Relative on purpose: an absolute `/api/...` drops any mount sub-path. */
     const ROUTE = 'api/prompt.optimize';
     const MODELS_ROUTE = 'api/prompt.optimize/models';
+    const SETTINGS_ROUTE = 'api/prompt.optimize/settings';
     const STREAMING = true;
     const MAX_INPUT_CHARS = 24000;
 
@@ -75,6 +76,8 @@ window.__ModuleLoader__.load({
       'panel.adoptedCopy': '当前环境无法写回输入框，已复制到剪贴板',
       'panel.undo': '撤销这次采纳',
       'panel.model': '模型',
+    'panel.model.auto': '跟随对话模型',
+    'panel.model.follow': '跟随对话（{model}）',
       'panel.temperature': '温度',
       'panel.temperature.stable': '稳定 0.2',
       'panel.temperature.flex': '灵活 0.7',
@@ -84,6 +87,23 @@ window.__ModuleLoader__.load({
       'panel.load': '载入',
       'panel.compat': '本插件按 DSH ≥ {required} 开发，当前 {current}，部分控件可能不可用',
       'panel.waiting': '思考中…',
+      'panel.settings': '设置',
+      'panel.preset': '预设',
+      'panel.candidates': '候选数',
+      'panel.maxTokens': '最大长度',
+      'panel.save': '保存',
+      'panel.saving': '保存中…',
+      'panel.saved': '已保存',
+      'panel.resetDefaults': '恢复默认',
+      'panel.settingsHint': '设置存在本机，换浏览器也在；模型仍跟随对话框里选择的模型。',
+      'panel.settingsLoading': '读取设置中…',
+      'panel.settingsFailed': '设置读取失败',
+      'panel.settingsReload': '重试',
+      'preset.general': '通用',
+      'preset.writing': '写作',
+      'preset.coding': '编程',
+      'preset.analysis': '分析',
+      'preset.agent': '智能体任务',
     };
 
     const EN = {
@@ -124,6 +144,8 @@ window.__ModuleLoader__.load({
       'panel.adoptedCopy': 'Could not write to the composer here — copied to the clipboard',
       'panel.undo': 'Undo this adoption',
       'panel.model': 'Model',
+    'panel.model.auto': 'Follow the chat model',
+    'panel.model.follow': 'Follow the chat ({model})',
       'panel.temperature': 'Temperature',
       'panel.temperature.stable': 'steady 0.2',
       'panel.temperature.flex': 'loose 0.7',
@@ -133,6 +155,23 @@ window.__ModuleLoader__.load({
       'panel.load': 'Load',
       'panel.compat': 'Built for DSH >= {required}, running {current}; some controls may be unavailable',
       'panel.waiting': 'Thinking…',
+      'panel.settings': 'Settings',
+      'panel.preset': 'Preset',
+      'panel.candidates': 'Candidates',
+      'panel.maxTokens': 'Max length',
+      'panel.save': 'Save',
+      'panel.saving': 'Saving…',
+      'panel.saved': 'Saved',
+      'panel.resetDefaults': 'Reset',
+      'panel.settingsHint': 'Settings live on this machine and survive a browser change; the model still follows the chat model picker.',
+      'panel.settingsLoading': 'Loading settings…',
+      'panel.settingsFailed': 'Could not load the settings',
+      'panel.settingsReload': 'Retry',
+      'preset.general': 'General',
+      'preset.writing': 'Writing',
+      'preset.coding': 'Coding',
+      'preset.analysis': 'Analysis',
+      'preset.agent': 'Agent task',
     };
 
     const CSS = [
@@ -173,6 +212,9 @@ window.__ModuleLoader__.load({
       '.dsh-po-history-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px}',
       '.dsh-po-history-text{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.78}',
       '@media (max-width:640px){.dsh-po-cols{grid-template-columns:1fr}}',
+      '.dsh-po-settings{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border-top:1px solid color-mix(in srgb,currentColor 12%,transparent);background:color-mix(in srgb,currentColor 3%,transparent)}',
+      '.dsh-po-settings-hint{flex:1 1 100%;font-size:11px;opacity:.6}',
+      '.dsh-po-settings .dsh-po-select{max-width:150px}',
     ].join('');
 
     // ---------------------------------------------------------------- forms
@@ -535,6 +577,31 @@ window.__ModuleLoader__.load({
 
     // --------------------------------------------------------------- store
 
+    /** @returns {{ provider: string, model: string } | null} */
+    function normalizeSelection(value) {
+      if (value === null || typeof value !== 'object') return null;
+      const provider = typeof value.provider === 'string' ? value.provider.trim() : '';
+      const model = typeof value.model === 'string' ? value.model.trim() : '';
+      if (provider === '' || model === '') return null;
+      return { provider, model };
+    }
+
+    /**
+     * The model the composer currently shows, read from the `modelSelection`
+     * projection (`next` is a pending switch, `lastUsed` the settled choice).
+     * Null when the host does not expose it — the host half then decides.
+     */
+    function readComposerModel(useProjection) {
+      if (typeof useProjection !== 'function') return null;
+      const snapshot = useProjection('modelSelection');
+      const picked = snapshot === null || typeof snapshot !== 'object' ? undefined : snapshot.next ?? snapshot.lastUsed;
+      return normalizeSelection(picked);
+    }
+
+    function composerKey(composer) {
+      return composer === null ? '' : `${composer.provider}\u0000${composer.model}`;
+    }
+
     function createStore() {
       const state = {
         status: 'idle',
@@ -549,6 +616,8 @@ window.__ModuleLoader__.load({
         modelsLoaded: false,
         modelsError: false,
         target: readTarget(),
+        /** What the composer's own model picker shows; null = unknown. */
+        composer: null,
         temperature: readTemperature(),
         history: readHistory(),
         historyOpen: false,
@@ -562,6 +631,15 @@ window.__ModuleLoader__.load({
         /** `{inputActions, sessionId}` published by the composer control. */
         writer: null,
         version: readBootVersion(),
+        /** Host-stored settings; null until the settings panel is opened. */
+        settings: null,
+        settingsDefaults: null,
+        settingsBounds: null,
+        settingsPresets: [],
+        settingsOpen: false,
+        settingsBusy: false,
+        settingsError: '',
+        settingsSavedAt: 0,
       };
       const listeners = new Set();
       let controller = null;
@@ -615,6 +693,13 @@ window.__ModuleLoader__.load({
           }
         },
 
+        /** Remember which model the composer shows; the control publishes it. */
+        setComposer(next) {
+          const composer = normalizeSelection(next);
+          if (composerKey(composer) === composerKey(state.composer)) return;
+          api.patch({ composer });
+        },
+
         setTarget(target) {
           writeJson(TARGET_KEY, target);
           api.patch({ target });
@@ -664,6 +749,11 @@ window.__ModuleLoader__.load({
             return;
           }
           const autoRun = state.autoWrite === true || direct;
+          // A null target means "follow the composer": ship the model the chat is
+          // currently using, so the rewrite never drifts to another model.
+          const composer = options !== null && typeof options === 'object' ? normalizeSelection(options.composer) : null;
+          const followed = composer ?? normalizeSelection(state.composer);
+          const effective = state.target !== null ? state.target : followed;
           controller = new AbortController();
           api.patch({
             status: 'running',
@@ -677,15 +767,17 @@ window.__ModuleLoader__.load({
             adopted: false,
             copied: false,
             direct,
-            provider: state.target === null ? state.provider : state.target.provider,
-            model: state.target === null ? state.model : state.target.model,
+            provider: effective === null ? state.provider : effective.provider,
+            model: effective === null ? state.model : effective.model,
           });
           void api.refreshModels(false);
           try {
             const outcome = await optimizeRequest({
               text: draft,
-              target: state.target,
-              temperature: state.temperature,
+              target: effective,
+              // Once the settings panel has loaded, temperature/preset/candidates
+              // are owned by the Host settings file; sending one here would win.
+              temperature: state.settings === null ? state.temperature : undefined,
               signal: controller.signal,
               onMeta: (meta) => api.patch({ provider: meta.provider || state.provider, model: meta.model || state.model }),
               onDelta: (delta) => api.patch({ partial: state.partial + delta }),
@@ -774,6 +866,86 @@ window.__ModuleLoader__.load({
 
         toggleVisible() {
           api.patch({ visible: !state.visible });
+        },
+
+        // ---------------------------------------------------------- settings
+
+        /** Read the persisted settings once, then keep them in memory. */
+        async loadSettings(force) {
+          if (state.settings !== null && force !== true) return;
+          api.patch({ settingsBusy: true, settingsError: '' });
+          try {
+            const { response, url } = await apiFetch(SETTINGS_ROUTE, { method: 'GET', credentials: 'same-origin' });
+            if (!response.ok) throw new RequestError(`${await readErrorDetail(response)} · GET ${url}`, response.status);
+            const payload = await response.json();
+            api.patch({
+              settings: payload?.settings ?? null,
+              settingsDefaults: payload?.defaults ?? null,
+              settingsBounds: payload?.bounds ?? null,
+              settingsPresets: Array.isArray(payload?.presets) ? payload.presets : [],
+              settingsBusy: false,
+              settingsError: '',
+            });
+          } catch (cause) {
+            console.error('[prompt-optimizer] settings unavailable', cause);
+            api.patch({ settingsBusy: false, settingsError: cause instanceof Error ? cause.message : String(cause) });
+          }
+        },
+
+        toggleSettings() {
+          const open = state.settingsOpen !== true;
+          api.patch({ settingsOpen: open });
+          if (open === true) void api.loadSettings(false);
+        },
+
+        /** Edit the local copy; nothing is persisted until saveSettings(). */
+        setSetting(key, value) {
+          if (state.settings === null) return;
+          api.patch({ settings: { ...state.settings, [key]: value }, settingsSavedAt: 0 });
+        },
+
+        async saveSettings() {
+          if (state.settings === null || state.settingsBusy === true) return;
+          api.patch({ settingsBusy: true, settingsError: '' });
+          try {
+            const { response, url } = await apiFetch(SETTINGS_ROUTE, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(state.settings),
+            });
+            if (!response.ok) throw new RequestError(`${await readErrorDetail(response)} · POST ${url}`, response.status);
+            const payload = await response.json();
+            api.patch({ settings: payload?.settings ?? state.settings, settingsBusy: false, settingsSavedAt: Date.now() });
+          } catch (cause) {
+            console.error('[prompt-optimizer] could not save settings', cause);
+            api.patch({ settingsBusy: false, settingsError: cause instanceof Error ? cause.message : String(cause) });
+          }
+        },
+
+        async resetSettings() {
+          if (state.settingsBusy === true) return;
+          api.patch({ settingsBusy: true, settingsError: '' });
+          try {
+            const { response, url } = await apiFetch(SETTINGS_ROUTE, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ reset: true }),
+            });
+            if (!response.ok) throw new RequestError(`${await readErrorDetail(response)} · POST ${url}`, response.status);
+            const payload = await response.json();
+            api.patch({ settings: payload?.settings ?? null, settingsBusy: false, settingsSavedAt: Date.now() });
+          } catch (cause) {
+            console.error('[prompt-optimizer] could not reset settings', cause);
+            api.patch({ settingsBusy: false, settingsError: cause instanceof Error ? cause.message : String(cause) });
+          }
+        },
+
+        /** Presets come from the Host so the list can grow without a UI patch. */
+        presetLabel(id, fallback) {
+          const found = state.settingsPresets.find((item) => item?.id === id);
+          return found === undefined ? fallback : found.label;
         },
 
         locale: (key, fallback) => fallback ?? key,
@@ -896,6 +1068,13 @@ window.__ModuleLoader__.load({
         const state = useStore(store);
         const draft = props.useInput((inputState) => (inputState === undefined || inputState === null ? '' : inputState.draft ?? ''));
         const text = String(draft ?? '').trim();
+        // The composer's own model picker wins by default: the rewrite should use
+        // the model the conversation is currently talking to. The panel dropdown
+        // can still pin a different one for this profile.
+        const composer = readComposerModel(props.useProjection);
+        React.useEffect(() => {
+          store.setComposer(composer);
+        }, [composerKey(composer)]);
         const canWrite = typeof props.inputActions?.setDraft === 'function' || typeof props.inputActions?.insertText === 'function';
         const busy = state.status === 'running';
         const hasResult = state.status === 'ready' || state.status === 'adopted';
@@ -922,8 +1101,8 @@ window.__ModuleLoader__.load({
             return;
           }
           const forceDirect = event !== null && typeof event === 'object' && (event.shiftKey === true || event.altKey === true);
-          void store.start(text, props.sessionId, { direct: forceDirect });
-        }, [busy, reviewing, text, props.sessionId]);
+          void store.start(text, props.sessionId, { direct: forceDirect, composer });
+        }, [busy, reviewing, text, props.sessionId, composerKey(composer)]);
 
         const label = busy
           ? t('action.busy', '优化中')
@@ -990,7 +1169,10 @@ window.__ModuleLoader__.load({
       return function OptimizePreview(props) {
         useLocaleRefresh(localeService, t);
         const state = useStore(store);
-        if (state.visible !== true || state.status === 'idle') return null;
+        // The settings panel must be reachable before the first optimization, so
+        // it alone is enough to keep the card mounted.
+        if (state.settingsOpen !== true && (state.visible !== true || state.status === 'idle')) return null;
+        const idle = state.status === 'idle';
 
         const running = state.status === 'running';
         const failed = state.status === 'error';
@@ -1017,6 +1199,7 @@ window.__ModuleLoader__.load({
           h('span', { key: 'title', className: 'dsh-po-title' }, h(Glyph, { key: 'icon' }), t('panel.title', '优化结果')),
           h('span', { key: 'meta', className: 'dsh-po-meta' }, running ? t('panel.streaming', '生成中…') : `${state.provider === '' ? '' : state.provider}${state.model === '' ? '' : ` / ${state.model}`}`),
           h('span', { key: 'spacer', className: 'dsh-po-spacer' }),
+          h('button', { key: 'settings', type: 'button', className: `dsh-po-ghost${state.settingsOpen === true ? ' is-on' : ''}`, onClick: () => store.toggleSettings(), title: t('panel.settings', '设置'), 'aria-label': t('panel.settings', '设置'), 'aria-pressed': state.settingsOpen === true }, '⚙'),
           h('button', { key: 'history', type: 'button', className: 'dsh-po-ghost', onClick: () => store.toggleHistory(), title: t('panel.history', '历史') }, `${t('panel.history', '历史')} ${state.history.length}`),
           h('button', { key: 'close', type: 'button', className: 'dsh-po-ghost', onClick: () => store.discard(), title: t('panel.close', '关闭'), 'aria-label': t('panel.close', '关闭') }, '✕'),
         );
@@ -1077,7 +1260,9 @@ window.__ModuleLoader__.load({
           h('label', { key: 'ml', className: 'dsh-po-note' }, t('panel.model', '模型')),
           state.models.length > 1
             ? h('select', { key: 'ms', className: 'dsh-po-select', value: targetValue, onChange: onModelChange, disabled: running },
-                h('option', { key: 'auto', value: '' }, `${t('panel.model', '模型')}: ${state.provider}${state.model === '' ? '' : ` / ${state.model}`}`),
+                h('option', { key: 'auto', value: '' }, state.composer === null
+                  ? t('panel.model.auto', '跟随对话模型')
+                  : format(t('panel.model.follow', '跟随对话（{model}）'), { model: `${state.composer.provider} / ${state.composer.model}` })),
                 ...state.models.map((item) => h('option', { key: `${item.provider}\u0000${item.model}`, value: `${item.provider}\u0000${item.model}` }, item.label ?? `${item.provider} / ${item.model}`)),
               )
             : h('span', { key: 'mn', className: 'dsh-po-note' }, `${state.provider}${state.model === '' ? '' : ` / ${state.model}`}`),
@@ -1092,6 +1277,65 @@ window.__ModuleLoader__.load({
         if (state.copied) notes.push(h('div', { key: 'copied', className: 'dsh-po-note' }, t('panel.adoptedCopy', '当前环境无法写回输入框，已复制到剪贴板')));
         if (!compatible) notes.push(h('div', { key: 'compat', className: 'dsh-po-note is-warn' }, format(t('panel.compat', '本插件按 DSH ≥ {required} 开发，当前 {current}'), { required: REQUIRED_DSH, current: state.version })));
         if (failed && state.error !== '') notes.push(h('div', { key: 'failed', className: 'dsh-po-note is-error' }, format(t('error.failed', '优化失败：{message}'), { message: state.error })));
+
+        let settingsPanel = null;
+        if (state.settingsOpen === true) {
+          const settings = state.settings;
+          const busy = state.settingsBusy === true;
+          const children = [];
+          if (settings === null) {
+            children.push(
+              h('span', { key: 'loading', className: 'dsh-po-note' }, busy ? t('panel.settingsLoading', '读取设置中…') : t('panel.settingsFailed', '设置读取失败')),
+              h('button', { key: 'reload', type: 'button', className: 'dsh-po-ghost', onClick: () => store.loadSettings(true) }, t('panel.settingsReload', '重试')),
+            );
+          } else {
+            children.push(
+              h('label', { key: 'pl', className: 'dsh-po-note' }, t('panel.preset', '预设')),
+              h('select', {
+                key: 'pv',
+                className: 'dsh-po-select',
+                value: settings.preset,
+                disabled: busy,
+                onChange: (event) => store.setSetting('preset', event?.target?.value),
+              }, ...state.settingsPresets.map((item) => h('option', { key: item.id, value: item.id }, t(`preset.${item.id}`, item.label)))),
+              h('label', { key: 'cl', className: 'dsh-po-note' }, t('panel.candidates', '候选数')),
+              h('select', {
+                key: 'cv',
+                className: 'dsh-po-select',
+                value: String(settings.candidates),
+                disabled: busy,
+                onChange: (event) => store.setSetting('candidates', Number(event?.target?.value)),
+              }, ...[1, 2, 3].map((count) => h('option', { key: `c${count}`, value: String(count) }, String(count)))),
+              h('label', { key: 'tl2', className: 'dsh-po-note' }, t('panel.maxTokens', '最大长度')),
+              h('select', {
+                key: 'tv',
+                className: 'dsh-po-select',
+                value: String(settings.maxOutputTokens),
+                disabled: busy,
+                onChange: (event) => store.setSetting('maxOutputTokens', Number(event?.target?.value)),
+              }, ...[800, 1600, 2400, 3200].map((tokens) => h('option', { key: `k${tokens}`, value: String(tokens) }, String(tokens)))),
+              h('label', { key: 'tpl', className: 'dsh-po-note' }, t('panel.temperature', '温度')),
+              h('select', {
+                key: 'tpv',
+                className: 'dsh-po-select',
+                value: String(settings.temperature),
+                disabled: busy,
+                onChange: (event) => store.setSetting('temperature', Number(event?.target?.value)),
+              },
+                h('option', { key: 'v02', value: '0.2' }, t('panel.temperature.stable', '稳定 0.2')),
+                h('option', { key: 'v05', value: '0.5' }, '0.5'),
+                h('option', { key: 'v07', value: '0.7' }, t('panel.temperature.flex', '灵活 0.7')),
+                h('option', { key: 'v10', value: '1' }, '1.0'),
+              ),
+              h('button', { key: 'save', type: 'button', className: 'dsh-po-primary', disabled: busy, onClick: () => store.saveSettings() }, busy ? t('panel.saving', '保存中…') : t('panel.save', '保存')),
+              h('button', { key: 'reset', type: 'button', className: 'dsh-po-ghost', disabled: busy, onClick: () => store.resetSettings() }, t('panel.resetDefaults', '恢复默认')),
+            );
+            if (state.settingsSavedAt > 0 && busy !== true) children.push(h('span', { key: 'saved', className: 'dsh-po-note' }, t('panel.saved', '已保存')));
+            children.push(h('span', { key: 'hint', className: 'dsh-po-settings-hint' }, t('panel.settingsHint', '设置存在本机，换浏览器也在；模型仍跟随对话框选择的模型。')));
+          }
+          if (state.settingsError !== '') children.push(h('span', { key: 'serr', className: 'dsh-po-note is-error' }, state.settingsError));
+          settingsPanel = h('div', { key: 'settings', className: 'dsh-po-settings' }, ...children);
+        }
 
         const history = state.historyOpen
           ? h(
@@ -1117,9 +1361,10 @@ window.__ModuleLoader__.load({
           { className: 'dsh-po-card' },
           h('style', { key: 'style' }, CSS),
           header,
-          h('div', { key: 'body', className: 'dsh-po-body' }, columns),
-          ...notes,
-          footer,
+          settingsPanel,
+          idle ? null : h('div', { key: 'body', className: 'dsh-po-body' }, columns),
+          ...(idle ? [] : notes),
+          idle ? null : footer,
           ready ? modelRow : null,
           history,
         );

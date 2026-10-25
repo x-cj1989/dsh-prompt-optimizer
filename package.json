@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-prompt-optimizer",
-  "version": "1.3.2",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
   "description": "Adds an Optimize button to the DeepSeek Harness composer: it rewrites the draft into a structured professional prompt and shows a before/after diff before anything is written back.",
@@ -20,7 +20,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --check index.js && node --check client.js && node --check lib/rewrite.js && node --check lib/handler.js",
+    "check": "node --check index.js && node --check client.js && node --check lib/rewrite.js && node --check lib/handler.js && node --check lib/settings.js",
     "verify": "npm run check && npm test"
   },
   "exports": {

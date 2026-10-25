@@ -24,11 +24,12 @@ function makeLlm({ deltas = ['hel', 'lo'], fail = false, providers = ['p1'], mod
   };
 }
 
-function makeRoutes({ services = {}, deltas, fail, providers, models } = {}) {
+function makeRoutes({ services = {}, deltas, fail, providers, models, config } = {}) {
   const llm = makeLlm({ deltas, fail, providers, models });
   const routeSet = createRoutes({
     getServices: () => ({ llm, defaultModel: { currentSelection: () => ({ provider: 'deepseek', model: 'chat' }) }, ...services }),
     pluginVersion: '1.2.0',
+    config,
   });
   return { routes: routeSet, llm };
 }
@@ -71,7 +72,14 @@ test('POST streams meta/delta/done frames when stream is true', async () => {
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-type'), /text\/event-stream/);
   const events = parseSse(await response.text());
-  assert.deepEqual(events[0], { type: 'meta', provider: 'deepseek', model: 'chat' });
+  assert.deepEqual(events[0], {
+    type: 'meta',
+    provider: 'deepseek',
+    model: 'chat',
+    source: 'profile',
+    pluginVersion: '1.2.0',
+    preset: 'general',
+  });
   assert.deepEqual(events.filter((event) => event.type === 'delta').map((event) => event.text), ['# 角色', '\n- 任务']);
   const done = events.at(-1);
   assert.equal(done.type, 'done');
@@ -132,11 +140,44 @@ test('an over-long draft is a 413', async () => {
   assert.equal(llm.seen.length, 0);
 });
 
-test('a missing default model is a 503 with an actionable message', async () => {
-  const { routes } = makeRoutes({ services: { defaultModel: undefined } });
+test('without a profile default the first advertised model is used', async () => {
+  const { routes, llm } = makeRoutes({ services: { defaultModel: undefined }, providers: ['p1'], models: ['m1'] });
+  const response = await routes.optimize(postJson({ text: 'x' }));
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.source, 'catalogue');
+  assert.equal(payload.provider, 'p1');
+  assert.equal(payload.model, 'm1');
+  assert.equal(llm.seen[0].model, 'm1');
+});
+
+test('only an empty catalogue is a 503', async () => {
+  const { routes } = makeRoutes({ services: { defaultModel: undefined }, providers: [], models: [] });
   const response = await routes.optimize(postJson({ text: 'x' }));
   assert.equal(response.status, 503);
-  assert.match((await response.json()).error, /No default model/);
+  assert.match((await response.json()).error, /No model is available/);
+});
+
+test('the bundle config wins over the profile default', async () => {
+  const { routes, llm } = makeRoutes({ config: { provider: 'cfg', model: 'cfm', temperature: 0.6 } });
+  const payload = await (await routes.optimize(postJson({ text: 'x' }))).json();
+  assert.equal(payload.source, 'config');
+  assert.deepEqual([payload.provider, payload.model], ['cfg', 'cfm']);
+  assert.equal(llm.seen[0].temperature, 0.6);
+});
+
+test('an explicit request still wins over the bundle config', async () => {
+  const { routes, llm } = makeRoutes({ config: { provider: 'cfg', model: 'cfm' } });
+  const payload = await (await routes.optimize(postJson({ text: 'x', provider: 'req', model: 'rem' }))).json();
+  assert.equal(payload.source, 'request');
+  assert.deepEqual([payload.provider, payload.model], ['req', 'rem']);
+  assert.equal(llm.seen[0].provider, 'req');
+});
+
+test('a half-filled config is ignored instead of guessing', async () => {
+  const { routes } = makeRoutes({ config: { provider: 'cfg', model: '' } });
+  const payload = await (await routes.optimize(postJson({ text: 'x' }))).json();
+  assert.equal(payload.source, 'profile');
 });
 
 test('a missing LLM service is a 503', async () => {
@@ -163,7 +204,7 @@ test('GET /models returns the catalogue and the default selection', async () => 
   const response = await routes.models(new Request(`${ORIGIN}${MODELS_ROUTE}`, { method: 'GET' }));
   assert.equal(response.status, 200);
   const payload = await response.json();
-  assert.deepEqual(payload.default, { provider: 'deepseek', model: 'chat' });
+  assert.deepEqual(payload.default, { provider: 'deepseek', model: 'chat', source: 'profile' });
   assert.equal(payload.pluginVersion, '1.2.0');
   assert.equal(payload.maxInputChars, 24000);
   assert.deepEqual(payload.models.map((item) => `${item.provider}/${item.model}`), [

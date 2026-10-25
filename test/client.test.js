@@ -310,6 +310,63 @@ async function withFetch(text, run) {
   }
 }
 
+/** Record POST bodies while answering like the host route would. */
+async function captureRequests(run) {
+  const bodies = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const method = String(init?.method ?? 'GET').toUpperCase();
+    if (method === 'POST') bodies.push(JSON.parse(String(init?.body ?? '{}')));
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => (method === 'GET' ? { models: [], default: null } : { text: '改写好了', provider: 'pc', model: 'mc' }),
+    };
+  };
+  try {
+    await run();
+  } finally {
+    globalThis.fetch = original;
+  }
+  return bodies;
+}
+
+test('the rewrite follows the model the composer currently shows', async () => {
+  window.localStorage.removeItem('dsh-prompt-optimizer:target');
+  const { store } = applyClient();
+  const bodies = await captureRequests(async () => {
+    store.setComposer({ provider: 'pc', model: 'mc' });
+    await store.start('写个周报', 's1');
+  });
+  assert.equal(bodies.length, 1);
+  assert.equal(bodies[0].provider, 'pc');
+  assert.equal(bodies[0].model, 'mc');
+});
+
+test('a pinned model in the panel wins over the composer model', async () => {
+  window.localStorage.removeItem('dsh-prompt-optimizer:target');
+  const { store } = applyClient();
+  const bodies = await captureRequests(async () => {
+    store.setComposer({ provider: 'pc', model: 'mc' });
+    store.setTarget({ provider: 'pin', model: 'pnm' });
+    await store.start('写个周报', 's2');
+  });
+  assert.equal(bodies[0].provider, 'pin');
+  assert.equal(bodies[0].model, 'pnm');
+  window.localStorage.removeItem('dsh-prompt-optimizer:target');
+});
+
+test('an unknown composer model is dropped instead of sent', () => {
+  const { store } = applyClient();
+  store.setComposer({ provider: 'pc', model: 'mc' });
+  store.setComposer({ provider: 'pc' });
+  assert.equal(store.get().composer, null);
+  store.setComposer({ provider: 'pc', model: 'mc' });
+  store.setComposer(null);
+  assert.equal(store.get().composer, null);
+});
+
 test('direct write-back is on by default and can be turned off', () => {
   window.localStorage.removeItem('dsh-prompt-optimizer:auto-write');
   const { store } = applyClient();
@@ -370,3 +427,63 @@ test('review mode waits for a click, Shift+click writes directly for one run', a
   assert.equal(store.get().visible, false);
 });
 
+
+test('the settings panel loads, edits and saves host settings', async () => {
+  const { store } = applyClient();
+  const calls = [];
+  const original = globalThis.fetch;
+  const defaults = { temperature: 0.2, maxOutputTokens: 1600, preset: 'general', candidates: 1 };
+  globalThis.fetch = async (input, init) => {
+    const method = String(init?.method ?? 'GET').toUpperCase();
+    const body = init?.body === undefined ? null : JSON.parse(String(init.body));
+    calls.push({ method, url: String(input), body });
+    const answer =
+      method === 'GET'
+        ? { settings: { ...defaults }, bounds: {}, presets: [{ id: 'general', label: 'General' }, { id: 'coding', label: 'Coding' }], defaults }
+        : { settings: body?.reset === true ? { ...defaults } : { ...defaults, ...body } };
+    return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => answer };
+  };
+  try {
+    store.toggleSettings();
+    assert.equal(internals().store.get().settingsOpen, true);
+    await store.loadSettings(true);
+    assert.equal(store.get().settings.preset, 'general');
+    assert.equal(store.get().settingsPresets.length, 2);
+    store.setSetting('candidates', 3);
+    await store.saveSettings();
+    assert.equal(store.get().settings.candidates, 3);
+    assert.ok(calls.some((call) => call.method === 'POST' && call.body.candidates === 3));
+    await store.resetSettings();
+    assert.equal(store.get().settings.candidates, 1);
+    assert.ok(calls.some((call) => call.method === 'POST' && call.body.reset === true));
+    store.toggleSettings();
+    assert.equal(store.get().settingsOpen, false);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('a loaded settings panel hands temperature ownership to the host', async () => {
+  const { store } = applyClient();
+  const original = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const method = String(init?.method ?? 'GET').toUpperCase();
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () =>
+        method === 'GET'
+          ? { settings: { temperature: 0.2, maxOutputTokens: 1600, preset: 'general', candidates: 1 }, bounds: {}, presets: [], defaults: {} }
+          : { text: '改写好了', provider: 'pc', model: 'mc' },
+    };
+  };
+  try {
+    await store.loadSettings(true);
+    const bodies = await captureRequests(() => store.start('写个周报', 's9'));
+    assert.equal(bodies.length, 1);
+    assert.equal(bodies[0].temperature, undefined);
+  } finally {
+    globalThis.fetch = original;
+  }
+});

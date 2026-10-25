@@ -2,6 +2,32 @@
 
 本文件记录本插件所有值得注意的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.5.0] - 2026-10-25
+
+### 新增
+- **插件自己的设置页**：卡片右上角 ⚙ 展开就地编辑条，可改「预设 / 候选数 / 最大长度 / 温度」后保存，不用碰 `cordis.patch.yml`。改动前必须先重启或重载插件才生效的时代结束了。
+- **偏好持久化**：设置写入 `~/.dsh/prompt-optimizer.json`（先写临时文件再 `rename`，不会写坏），跨浏览器、跨应用重启都在；「恢复默认」把文件写回出厂值。
+- **场景预设**：通用 / 写作 / 编程 / 分析 / 智能体任务，在基础改写规则上追加该场景的取向（如编程强调验收标准与错误处理），系统提示词由 Host 按预设拼装。
+- **多候选择优**：候选数 2–3 时并行生成多版，Host 按「标题层级 + 列表项 + `键: 值` 行 + 长度」打分（含 `TODO` / 占位符 / “这是为你写的”这类口水话扣分），返回分数最高的一版；`spreadTemperature` 让各候选温度略有差异，避免几版雷同。
+- Host 新增 `GET/POST /api/prompt.optimize/settings`：GET 返回当前设置 + 取值范围 + 预设列表，POST 合并补丁（非法值 400 / 落盘失败 503），`{ reset: true }` 恢复默认。
+
+### 变更
+- 温度归属改为 Host：设置页成功读到配置后，客户端不再在请求里发温度，避免 `localStorage` 与磁盘文件互相覆盖。
+- 设置页读不到配置时显示「设置读取失败」+「重试」，不静默吞错。
+- 卡片在没有结果时本来渲染 `null`；现在只要设置页打开着就保持挂载，第一次优化之前也能改设置。
+- 新增 23 个测试（`test/settings.test.js`、handler 的设置路由与候选择优、client 的设置面板读写），共 80 个。
+
+## [1.4.0] - 2026-10-25
+
+### 新增
+- **改写用哪个模型，跟着对话框走**：点 ✨ 时读取输入框上方模型选择器当前选中的模型（`modelSelection` 投影），随请求一起发给 Host，改写与对话使用同一个模型，不再回落到 profile 默认值。
+- **零配置即可用**：Host 按「请求 → 插件配置 → profile 默认 → LLM 服务公布的第一个模型」顺序解析，全新机器上没有任何默认模型也能直接改写，不再出现 `No default model is selected`。
+- **可选 bundle 配置**：patch 行里写 `config: { provider, model, temperature }` 即可钉死模型与温度；只填一半的配置会被忽略而不是猜。
+- 结果里新增 `source` 字段（`request` / `config` / `profile` / `catalogue`），Host 日志也会记录本次模型来自哪一级，便于排查“为什么用了这个模型”。
+- 面板模型下拉的自动项改为「跟随对话（provider / model）」，一眼能看出当前跟的是哪个模型。
+
+### 变更
+- 系统提示词对语言不做任何假设：保留输入的语言与术语，中英文提示词都按原文语言产出。
 ## [1.3.2] - 2026-10-25
 
 ### 变更
@@ -70,6 +96,11 @@
 - 首个版本：输入框工具行右侧 ✨「优化提示词」按钮，POST `/api/prompt.optimize` 改写后写回输入框。
 - 基于 profile 默认模型（`agentDefaultModel.currentSelection()`）与 `llm.stream()`，不带任何第三方依赖。
 
+[1.5.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.5.0
+[1.4.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.4.0
+[1.3.2]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.3.2
+[1.3.1]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.3.1
+[1.3.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.3.0
 [1.2.1]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.2.1
 [1.2.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.2.0
 [1.1.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.1.0
