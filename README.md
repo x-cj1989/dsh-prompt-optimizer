@@ -1,5 +1,8 @@
 # dsh-prompt-optimizer
 
+[![](https://img.shields.io/badge/license-MIT-4c1?style=flat-square)](LICENSE)
+[![](https://img.shields.io/badge/version-1.1.0-4D6BFE?style=flat-square)](https://github.com/x-cj1989/dsh-prompt-optimizer/tags)
+
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的 Web 界面加一个 **「优化提示词」** 按钮：把输入框里随手写的一句话，用你当前 profile 的默认模型改写成一份结构化的专业提示词，直接写回输入框，改完可以一键撤回。
 
 > 想加截图：把图片放到 `docs/button.png`，再把下面这行取消注释。
@@ -101,7 +104,8 @@ pnpm --dir ~/.dsh/profiles/<profile> add link:<本仓库的绝对路径>
 ├── index.js           Host 半
 ├── client.js          Client 半
 ├── locale/{en,zh}.json 插件在「插件」页里的标题与描述
-└── icon.svg           插件图标
+├── icon.svg           插件图标
+└── LICENSE            MIT
 ```
 `locale/` 里的两份 JSON 是**插件元数据**；按钮文案的字典注册在 `client.js` 里，两者作用不同。
 
@@ -111,6 +115,6 @@ pnpm --dir ~/.dsh/profiles/<profile> add link:<本仓库的绝对路径>
 
 ## License
 
-未指定。要开源建议补一份（MIT / Apache-2.0）。
+[MIT](LICENSE) © 2026 x-cj1989
 
 [![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
