@@ -843,7 +843,7 @@ window.__ModuleLoader__.load({
 
         discard() {
           if (controller !== null) controller.abort();
-          api.patch({ status: 'idle', visible: false, partial: '', error: '', adopted: false, copied: false, direct: false, autoAdopted: false });
+          api.patch({ status: 'idle', visible: false, partial: '', error: '', adopted: false, copied: false, direct: false, autoAdopted: false, settingsOpen: false });
         },
 
         toggleHistory() {

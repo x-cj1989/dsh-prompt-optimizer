@@ -2,6 +2,11 @@
 
 本文件记录本插件所有值得注意的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.5.2] - 2026-10-25
+
+### 修复
+- 设置卡片在没有结果时的右上角 ✕ 点了没反应：关闭按钮现在同时收起设置条，不再留下一个关不掉的空卡片。
+
 ## [1.5.1] - 2026-10-25
 
 ### 修复
@@ -102,6 +107,7 @@
 - 首个版本：输入框工具行右侧 ✨「优化提示词」按钮，POST `/api/prompt.optimize` 改写后写回输入框。
 - 基于 profile 默认模型（`agentDefaultModel.currentSelection()`）与 `llm.stream()`，不带任何第三方依赖。
 
+[1.5.2]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.5.2
 [1.5.1]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.5.1
 [1.5.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.5.0
 [1.4.0]: https://github.com/x-cj1989/dsh-prompt-optimizer/releases/tag/v1.4.0
