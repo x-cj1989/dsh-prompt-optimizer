@@ -22,7 +22,7 @@ import { LOG_PATH, hostLog } from './lib/hostlog.js';
 import { createSettingsStore } from './lib/settings.js';
 
 /** Keep in sync with package.json — `test/package.test.js` enforces it. */
-export const VERSION = '1.5.2';
+export const VERSION = '1.5.4';
 
 /**
  * Optional bundle settings, read straight from the patch row's `config`:

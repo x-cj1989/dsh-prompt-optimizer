@@ -5,14 +5,17 @@ import { MODELS_ROUTE, ROUTE, createRoutes } from '../lib/handler.js';
 
 const ORIGIN = 'http://127.0.0.1:1234';
 
-function makeLlm({ deltas = ['hel', 'lo'], fail = false, providers = ['p1'], models = ['m1', 'm2'] } = {}) {
+function makeLlm({ deltas = ['hel', 'lo'], fail = false, providers = ['p1'], models = ['m1', 'm2'], deltasPerCall = null } = {}) {
   const seen = [];
   return {
     seen,
     async *stream(request) {
       seen.push(request);
       if (fail) throw new Error('upstream exploded');
-      for (const text of deltas) yield { type: 'text-delta', index: 0, text };
+      const call = Array.isArray(deltasPerCall) ? deltasPerCall[seen.length - 1] : undefined;
+      for (const item of call === undefined ? deltas : call) {
+        yield typeof item === 'string' ? { type: 'text-delta', index: 0, text: item } : item;
+      }
       yield { type: 'finish', reason: 'stop' };
     },
     async listProviders() {
@@ -24,8 +27,8 @@ function makeLlm({ deltas = ['hel', 'lo'], fail = false, providers = ['p1'], mod
   };
 }
 
-function makeRoutes({ services = {}, deltas, fail, providers, models, config } = {}) {
-  const llm = makeLlm({ deltas, fail, providers, models });
+function makeRoutes({ services = {}, deltas, fail, providers, models, config, deltasPerCall } = {}) {
+  const llm = makeLlm({ deltas, fail, providers, models, deltasPerCall });
   const routeSet = createRoutes({
     getServices: () => ({ llm, defaultModel: { currentSelection: () => ({ provider: 'deepseek', model: 'chat' }) }, ...services }),
     pluginVersion: '1.2.0',
@@ -210,6 +213,24 @@ test('an empty model answer is a 502', async () => {
   const response = await routes.optimize(postJson({ text: 'x' }));
   assert.equal(response.status, 502);
   assert.match((await response.json()).error, /no text/);
+});
+
+test('an empty first answer is retried once with more room', async () => {
+  const { routes, llm } = makeRoutes({ deltasPerCall: [[], ['# 目标', '\n- 写周报']] });
+  const response = await routes.optimize(postJson({ text: '帮我写个周报' }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).text, '# 目标\n- 写周报');
+  assert.equal(llm.seen.length, 2);
+  assert.ok(llm.seen[1].maxTokens > llm.seen[0].maxTokens, String(llm.seen[1].maxTokens));
+});
+
+test('a reasoning-only answer explains the cause', async () => {
+  const reasoning = [{ type: 'reasoning-delta', index: 0, text: '想一下……' }];
+  const { routes, llm } = makeRoutes({ deltasPerCall: [reasoning, reasoning] });
+  const response = await routes.optimize(postJson({ text: '帮我写个周报' }));
+  assert.equal(response.status, 502);
+  assert.match((await response.json()).error, /reasoning/);
+  assert.equal(llm.seen.length, 2);
 });
 
 test('GET /models returns the catalogue and the default selection', async () => {

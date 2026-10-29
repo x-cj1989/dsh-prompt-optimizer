@@ -99,6 +99,7 @@ const MAX_DRAFT_CHARS = 120000;
       'panel.waiting': '思考中…',
       'panel.settings': '设置',
       'panel.preset': '预设',
+      'error.noText': '模型没有返回正文：它可能把输出长度全用在思考上了。把「最大长度」调大后重试一次。',
       'panel.candidates': '候选数',
       'panel.maxTokens': '最大长度',
       'panel.save': '保存',
@@ -175,6 +176,7 @@ const MAX_DRAFT_CHARS = 120000;
       'panel.waiting': 'Thinking…',
       'panel.settings': 'Settings',
       'panel.preset': 'Preset',
+      'error.noText': 'The model returned no text — it may have spent the whole output limit on reasoning. Raise the maximum length and retry.',
       'panel.candidates': 'Candidates',
       'panel.maxTokens': 'Max length',
       'panel.save': 'Save',
@@ -861,7 +863,7 @@ function countChars(text) {
             api.patch({
               status: 'error',
               visible: true,
-              error: status === 401 ? `${message}${api.locale('error.authHint')}` : message,
+              error: status === 401 ? `${message}${api.locale('error.authHint')}` : explainError(t, message),
             });
           } finally {
             controller = null;
@@ -1116,7 +1118,18 @@ function countChars(text) {
       return translate;
     }
 
-    function makeControl(t, store, localeService) {
+    /** The Host sends preset names in English; keep the fallback Chinese whenever no locale pack applies. */
+const PRESET_FALLBACK = { general: '通用', writing: '写作', coding: '编程', analysis: '分析', agent: '智能体任务' };
+
+/** Say what to do about a Host error whose cause is known. */
+function explainError(t, message) {
+  if (/no text for this draft/u.test(message)) {
+    return t('error.noText', '模型没有返回正文：它可能把输出长度全用在思考上了。把「最大长度」调大后重试一次。');
+  }
+  return message;
+}
+
+function makeControl(t, store, localeService) {
       return function OptimizeControl(props) {
         useLocaleRefresh(localeService, t);
         const state = useStore(store);
@@ -1397,7 +1410,7 @@ function countChars(text) {
                 value: settings.preset,
                 disabled: busy,
                 onChange: (event) => store.setSetting('preset', event?.target?.value),
-              }, ...state.settingsPresets.map((item) => h('option', { key: item.id, value: item.id }, t(`preset.${item.id}`, item.label)))),
+              }, ...state.settingsPresets.map((item) => h('option', { key: item.id, value: item.id }, t('preset.' + item.id, PRESET_FALLBACK[item.id] || item.label)))),
               h('label', { key: 'cl', className: 'dsh-po-note' }, t('panel.candidates', '候选数')),
               h('select', {
                 key: 'cv',

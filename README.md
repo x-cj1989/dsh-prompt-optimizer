@@ -126,7 +126,7 @@ client.js         Client 半 ─ 两个槽位
 |---|---|---|---|
 | `lib/rewrite.js` | `MAX_INPUT_CHARS` | `24000` | 单次调用预算；超过就按段落切段、逐段改写后按顺序拼回，不丢内容 |
 | `lib/rewrite.js` | `MAX_DRAFT_CHARS` | `120000` | 硬上限：超过才 413（提示用户分几次优化） |
-| `lib/rewrite.js` | `MAX_OUTPUT_TOKENS` | `1600` | 一次改写的输出上限 |
+| `lib/rewrite.js` | `MAX_OUTPUT_TOKENS` | `3000` | 一次改写的输出上限；模型一个字没写时自动用双倍预算（上限 8000）重试一次 |
 | `lib/rewrite.js` | `DEFAULT_TEMPERATURE` | `0.2` | 改写是收敛任务 |
 | `lib/rewrite.js` | `TIMEOUT_MS` | `120000` | 单次调用超时（与页面取消信号合并） |
 | `lib/rewrite.js` | `SYSTEM_PROMPT` | 见文件 | 改写规则本身，想改风格就改这里 |
