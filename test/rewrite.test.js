@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   DEFAULT_TEMPERATURE,
+  MAX_DRAFT_CHARS,
   MAX_INPUT_CHARS,
   SYSTEM_PROMPT,
   buildMessages,
@@ -10,6 +11,8 @@ import {
   normalizeOutput,
   parseTarget,
   sanitizeDraft,
+  segmentSystemPrompt,
+  splitDraft,
   unwrapFence,
 } from '../lib/rewrite.js';
 
@@ -25,15 +28,51 @@ test('sanitizeDraft rejects empty, non-string and blank drafts', () => {
   }
 });
 
-test('sanitizeDraft rejects drafts above the character budget', () => {
-  const result = sanitizeDraft('a'.repeat(MAX_INPUT_CHARS + 1));
-  assert.equal(result.ok, false);
-  assert.equal(result.status, 413);
-  assert.match(result.error, /24000/);
+test('a draft above the per-call budget is accepted so it can be chunked', () => {
+  assert.equal(sanitizeDraft('a'.repeat(MAX_INPUT_CHARS + 1)).ok, true);
 });
 
-test('sanitizeDraft keeps a draft exactly at the budget', () => {
-  assert.equal(sanitizeDraft('a'.repeat(MAX_INPUT_CHARS)).ok, true);
+test('sanitizeDraft rejects a draft above the hard ceiling', () => {
+  const result = sanitizeDraft('a'.repeat(MAX_DRAFT_CHARS + 1));
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 413);
+  assert.match(result.error, /120000/);
+});
+
+test('sanitizeDraft keeps a draft exactly at the hard ceiling', () => {
+  assert.equal(sanitizeDraft('a'.repeat(MAX_DRAFT_CHARS)).ok, true);
+});
+
+test('splitDraft keeps a short draft whole', () => {
+  assert.deepEqual(splitDraft('写个周报'), ['写个周报']);
+  assert.deepEqual(splitDraft(''), []);
+});
+
+test('splitDraft cuts on paragraph boundaries and loses nothing', () => {
+  const block = 'x'.repeat(900);
+  const text = [block, block, block].join('\n\n');
+  const parts = splitDraft(text, 1000);
+  assert.ok(parts.length > 1, String(parts.length));
+  for (const part of parts) assert.ok(part.length <= 1000, String(part.length));
+  assert.equal(parts.join(''), text);
+});
+
+test('splitDraft hard-wraps one huge paragraph without splitting a surrogate pair', () => {
+  const text = '😀'.repeat(300);
+  const parts = splitDraft(text, 100);
+  for (const part of parts) {
+    assert.ok(part.length <= 100, String(part.length));
+    assert.ok(!/[\ud800-\udbff]$/u.test(part), 'split surrogate pair');
+  }
+  assert.equal(parts.join(''), text);
+});
+
+test('segmentSystemPrompt only marks real parts', () => {
+  assert.equal(segmentSystemPrompt('SYS', 0, 1), 'SYS');
+  assert.equal(segmentSystemPrompt('SYS', 0, 0), 'SYS');
+  const marked = segmentSystemPrompt('SYS', 1, 3);
+  assert.ok(marked.startsWith('SYS'));
+  assert.match(marked, /part 2 of 3/);
 });
 
 test('unwrapFence removes exactly one wrapping fence', () => {

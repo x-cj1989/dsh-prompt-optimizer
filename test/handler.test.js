@@ -134,10 +134,23 @@ test('an empty draft is a 400 and never reaches the model', async () => {
   assert.equal(llm.seen.length, 0);
 });
 
-test('an over-long draft is a 413', async () => {
+test('a draft above the hard ceiling is a 413', async () => {
   const { routes, llm } = makeRoutes();
-  assert.equal((await routes.optimize(postJson({ text: 'a'.repeat(24001) }))).status, 413);
+  assert.equal((await routes.optimize(postJson({ text: 'a'.repeat(120001) }))).status, 413);
   assert.equal(llm.seen.length, 0);
+});
+
+test('a long draft is rewritten part by part and joined back', async () => {
+  const { routes, llm } = makeRoutes();
+  const block = 'x'.repeat(15000);
+  const text = [block, block].join('\n\n');
+  const response = await routes.optimize(postJson({ text }));
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(llm.seen.length, 2);
+  assert.equal(payload.ledger.chunks, 2);
+  assert.match(JSON.stringify(llm.seen[0]), /part 1 of 2/);
+  assert.match(JSON.stringify(llm.seen[1]), /part 2 of 2/);
 });
 
 test('without a profile default the first advertised model is used', async () => {

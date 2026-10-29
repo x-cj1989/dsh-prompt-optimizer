@@ -27,6 +27,8 @@ window.__ModuleLoader__.load({
     const SETTINGS_ROUTE = 'api/prompt.optimize/settings';
     const STREAMING = true;
     const MAX_INPUT_CHARS = 24000;
+/** The Host chunks drafts above MAX_INPUT_CHARS, so the client only guards this ceiling. */
+const MAX_DRAFT_CHARS = 120000;
 
     const STASH_PREFIX = 'dsh-prompt-optimizer:revert:';
     const STASH_LIMIT = 10;
@@ -53,6 +55,7 @@ window.__ModuleLoader__.load({
       'tip.view': '展开或收起优化对比',
       'tip.failed': '优化失败：{message}（点击重试）',
       'error.failed': '优化失败：{message}',
+      'error.tooLong': '草稿超过 {limit} 字符，请分几次优化',
       'error.empty': '模型返回了空结果',
       'error.network': '请求失败：{message}',
       'error.authHint': '（页面会话已失效，请用带 token 的地址刷新页面）',
@@ -62,6 +65,13 @@ window.__ModuleLoader__.load({
       'panel.streaming': '生成中…',
       'panel.stats': '{from} → {to} 字',
       'panel.lines': '{added} 行新增 / {removed} 行删除',
+      'panel.anchors': '锚点 {kept}/{total} 保留',
+      'panel.anchorsMissing': '缺 {n} 处',
+      'panel.chunks': '分 {n} 段',
+      'panel.repairedOnly': '已删掉编造内容',
+      'panel.added': '补全 {n} 条未见于原文',
+      'panel.addedTip': '新增：{list}',
+      'panel.repaired': '已自动补回',
       'panel.adopt': '采纳并写入',
       'panel.discard': '放弃',
       'panel.retry': '重新优化',
@@ -121,6 +131,7 @@ window.__ModuleLoader__.load({
       'tip.view': 'Expand or collapse the before/after comparison',
       'tip.failed': 'Optimization failed: {message} (click to retry)',
       'error.failed': 'Optimization failed: {message}',
+      'error.tooLong': 'The draft is longer than {limit} characters — split it and optimize each part',
       'error.empty': 'The model returned an empty result',
       'error.network': 'Request failed: {message}',
       'error.authHint': ' (the page session expired — reload the URL printed by dsh web)',
@@ -130,6 +141,13 @@ window.__ModuleLoader__.load({
       'panel.streaming': 'streaming…',
       'panel.stats': '{from} → {to} chars',
       'panel.lines': '{added} added / {removed} removed lines',
+      'panel.anchors': '{kept}/{total} anchors kept',
+      'panel.anchorsMissing': '{n} dropped',
+      'panel.chunks': '{n} parts',
+      'panel.repairedOnly': 'invented material removed',
+      'panel.added': '{n} not in the draft',
+      'panel.addedTip': 'added: {list}',
+      'panel.repaired': 'auto-repaired once',
       'panel.adopt': 'Adopt',
       'panel.discard': 'Discard',
       'panel.retry': 'Optimize again',
@@ -233,7 +251,14 @@ window.__ModuleLoader__.load({
     }
 
     /** Code-point aware length, so CJK and emoji count as one character. */
-    function countChars(text) {
+    /** The Host chunks a long draft and reports how many parts it rewrote. */
+function ledgerWithChunks(ledger, raw) {
+  if (ledger === null || ledger === undefined) return null;
+  const chunks = Math.round(Number(raw === null || raw === undefined ? NaN : raw.chunks));
+  return Number.isFinite(chunks) && chunks > 1 ? { ...ledger, chunks } : ledger;
+}
+
+function countChars(text) {
       return Array.from(String(text ?? '')).length;
     }
 
@@ -503,7 +528,22 @@ window.__ModuleLoader__.load({
       return attempt ?? { response: new Response(null, { status: 404 }), url: path };
     }
 
-    async function optimizeRequest({ text, target, temperature, signal, onMeta, onDelta }) {
+    /** Keep only a well-formed ledger; anything else means "no claim". */
+    function normalizeLedger(value) {
+      if (value === null || typeof value !== 'object') return null;
+      const total = Number(value.anchors);
+      const kept = Number(value.kept);
+      if (!Number.isFinite(total) || !Number.isFinite(kept) || total <= 0) return null;
+      const missing = Array.isArray(value.missing) ? value.missing.filter((item) => typeof item === 'string' && item !== '') : [];
+      const added = Array.isArray(value.added)
+        ? value.added
+          .filter((item) => item !== null && typeof item === 'object' && typeof item.value === 'string' && item.value !== '')
+          .map((item) => ({ kind: typeof item.kind === 'string' ? item.kind : '', value: item.value, risk: item.risk === 'high' ? 'high' : 'low' }))
+        : [];
+      return { anchors: total, kept: Math.max(0, Math.min(total, kept)), missing, repaired: value.repaired === true, added };
+    }
+
+    async function optimizeRequest({ text, target, temperature, signal, onMeta, onDelta, onReset }) {
       const body = { text, temperature };
       if (target !== null && target !== undefined && target.provider !== '' && target.model !== '') {
         body.provider = target.provider;
@@ -531,11 +571,16 @@ window.__ModuleLoader__.load({
           if (event === null || typeof event !== 'object') return;
           if (event.type === 'meta') {
             onMeta?.({ provider: typeof event.provider === 'string' ? event.provider : '', model: typeof event.model === 'string' ? event.model : '' });
+          } else if (event.type === 'reset') {
+            // The host dropped its first answer for a repair pass: clear the
+            // partial text so the rewritten prompt does not appear twice.
+            partial = '';
+            onReset?.();
           } else if (event.type === 'delta' && typeof event.text === 'string') {
             partial += event.text;
             onDelta?.(event.text);
           } else if (event.type === 'done') {
-            final = { text: typeof event.text === 'string' ? event.text : '', provider: event.provider, model: event.model };
+            final = { text: typeof event.text === 'string' ? event.text : '', provider: event.provider, model: event.model, ledger: event.ledger ?? null };
           } else if (event.type === 'error') {
             failure = typeof event.message === 'string' && event.message !== '' ? event.message : 'stream failed';
           }
@@ -546,7 +591,7 @@ window.__ModuleLoader__.load({
           feed(decoder.decode(value, { stream: true }));
         }
         if (failure !== '') throw new Error(failure);
-        const merged = final === null ? { text: partial, provider: target?.provider ?? '', model: target?.model ?? '' } : final;
+        const merged = final === null ? { text: partial, provider: target?.provider ?? '', model: target?.model ?? '', ledger: null } : final;
         return merged;
       }
 
@@ -560,6 +605,7 @@ window.__ModuleLoader__.load({
         text: typeof payload?.text === 'string' ? payload.text : '',
         provider: typeof payload?.provider === 'string' ? payload.provider : '',
         model: typeof payload?.model === 'string' ? payload.model : '',
+        ledger: payload?.ledger ?? null,
       };
     }
 
@@ -613,6 +659,8 @@ window.__ModuleLoader__.load({
         result: '',
         partial: '',
         error: '',
+        /** Anchor ledger from the host: { anchors, kept, missing, repaired }. */
+        ledger: null,
         provider: '',
         model: '',
         models: [],
@@ -747,8 +795,8 @@ window.__ModuleLoader__.load({
           const draft = String(text ?? '').trim();
           const direct = options !== null && typeof options === 'object' && options.direct === true;
           if (draft === '') return;
-          if (countChars(draft) > MAX_INPUT_CHARS) {
-            api.patch({ status: 'error', visible: true, error: format(api.locale('error.failed'), { message: `> ${MAX_INPUT_CHARS}` }), source: draft, direct: false });
+          if (countChars(draft) > MAX_DRAFT_CHARS) {
+            api.patch({ status: 'error', visible: true, error: format(api.locale('error.tooLong'), { limit: MAX_DRAFT_CHARS }), source: draft, direct: false });
             return;
           }
           const autoRun = state.autoWrite === true || direct;
@@ -767,6 +815,7 @@ window.__ModuleLoader__.load({
             result: '',
             partial: '',
             error: '',
+            ledger: null,
             adopted: false,
             copied: false,
             direct,
@@ -784,6 +833,7 @@ window.__ModuleLoader__.load({
               signal: controller.signal,
               onMeta: (meta) => api.patch({ provider: meta.provider || state.provider, model: meta.model || state.model }),
               onDelta: (delta) => api.patch({ partial: state.partial + delta }),
+              onReset: () => api.patch({ partial: '' }),
             });
             const text_ = typeof outcome?.text === 'string' ? outcome.text : '';
             if (text_.trim() === '') throw new Error(api.locale('error.empty'));
@@ -793,6 +843,7 @@ window.__ModuleLoader__.load({
               partial: text_,
               provider: typeof outcome.provider === 'string' && outcome.provider !== '' ? outcome.provider : state.provider,
               model: typeof outcome.model === 'string' && outcome.model !== '' ? outcome.model : state.model,
+              ledger: ledgerWithChunks(normalizeLedger(outcome.ledger), outcome.ledger),
               history: pushHistory({ ts: Date.now(), source: draft, result: text_, provider: outcome.provider ?? '', model: outcome.model ?? '', sessionId: sessionId === undefined ? '' : String(sessionId) }),
             });
             if (state.autoWrite === true || state.direct === true) {
@@ -843,7 +894,7 @@ window.__ModuleLoader__.load({
 
         discard() {
           if (controller !== null) controller.abort();
-          api.patch({ status: 'idle', visible: false, partial: '', error: '', adopted: false, copied: false, direct: false, autoAdopted: false, settingsOpen: false });
+          api.patch({ status: 'idle', visible: false, partial: '', error: '', ledger: null, adopted: false, copied: false, direct: false, autoAdopted: false, settingsOpen: false });
         },
 
         toggleHistory() {
@@ -853,7 +904,7 @@ window.__ModuleLoader__.load({
         loadEntry(index) {
           const entry = state.history[index];
           if (entry === undefined) return;
-          api.patch({ status: 'ready', visible: true, source: entry.source, result: entry.result, partial: entry.result, provider: entry.provider ?? '', model: entry.model ?? '', error: '', adopted: false, copied: false, autoAdopted: false, historyOpen: false });
+          api.patch({ status: 'ready', visible: true, source: entry.source, result: entry.result, partial: entry.result, ledger: null, provider: entry.provider ?? '', model: entry.model ?? '', error: '', adopted: false, copied: false, autoAdopted: false, historyOpen: false });
         },
 
         clearHistory() {
@@ -1292,8 +1343,38 @@ window.__ModuleLoader__.load({
           ),
         );
 
+        // The delivery receipt: how many hard anchors from the draft survived.
+        const ledger = state.ledger;
+        let ledgerText = '';
+        let ledgerTip = '';
+        const hasLedger = ready && ledger !== null && (ledger.anchors > 0 || ledger.added.length > 0);
+        if (hasLedger) {
+          if (ledger.anchors > 0) {
+            ledgerText = format(t('panel.anchors', '锚点 {kept}/{total} 保留'), { kept: ledger.kept, total: ledger.anchors });
+            if (ledger.repaired === true) ledgerText += ' · ' + t('panel.repaired', '已自动补回');
+            else if (ledger.missing.length > 0) ledgerText += ' · ' + format(t('panel.anchorsMissing', '缺 {n} 处'), { n: ledger.missing.length });
+          } else if (ledger.repaired === true) {
+            ledgerText = t('panel.repairedOnly', '已删掉编造内容');
+          }
+          if (ledger.added.length > 0) {
+            const addedText = format(t('panel.added', '补全 {n} 条未见于原文'), { n: ledger.added.length });
+            ledgerText = ledgerText === '' ? addedText : ledgerText + ' · ' + addedText;
+          }
+          const chunkCount = Number(ledger.chunks);
+        if (Number.isFinite(chunkCount) && chunkCount > 1) {
+          const chunkText = format(t('panel.chunks', '分 {n} 段'), { n: chunkCount });
+          ledgerText = ledgerText === '' ? chunkText : ledgerText + ' · ' + chunkText;
+        }
+        const tips = ledger.missing.slice();
+          if (ledger.added.length > 0) {
+            tips.push(format(t('panel.addedTip', '新增：{list}'), { list: ledger.added.map((entry) => entry.value).join('、') }));
+          }
+          ledgerTip = tips.join(' · ');
+        }
+
         const notes = [];
         if (state.copied) notes.push(h('div', { key: 'copied', className: 'dsh-po-note' }, t('panel.adoptedCopy', '当前环境无法写回输入框，已复制到剪贴板')));
+        if (hasLedger) notes.push(h('div', { key: 'ledger', className: 'dsh-po-note' + (ledger.missing.length > 0 || ledger.added.some((entry) => entry.risk === 'high') ? ' is-warn' : ''), title: ledgerTip === '' ? undefined : ledgerTip }, ledgerText));
         if (!compatible) notes.push(h('div', { key: 'compat', className: 'dsh-po-note is-warn' }, format(t('panel.compat', '本插件按 DSH ≥ {required} 开发，当前 {current}'), { required: REQUIRED_DSH, current: state.version })));
         if (failed && state.error !== '') notes.push(h('div', { key: 'failed', className: 'dsh-po-note is-error' }, format(t('error.failed', '优化失败：{message}'), { message: state.error })));
 

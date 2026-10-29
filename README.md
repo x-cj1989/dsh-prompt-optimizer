@@ -124,7 +124,8 @@ client.js         Client 半 ─ 两个槽位
 
 | 位置 | 常量 | 默认 | 说明 |
 |---|---|---|---|
-| `lib/rewrite.js` | `MAX_INPUT_CHARS` | `24000` | 超过直接 413，避免把长文灌进上下文 |
+| `lib/rewrite.js` | `MAX_INPUT_CHARS` | `24000` | 单次调用预算；超过就按段落切段、逐段改写后按顺序拼回，不丢内容 |
+| `lib/rewrite.js` | `MAX_DRAFT_CHARS` | `120000` | 硬上限：超过才 413（提示用户分几次优化） |
 | `lib/rewrite.js` | `MAX_OUTPUT_TOKENS` | `1600` | 一次改写的输出上限 |
 | `lib/rewrite.js` | `DEFAULT_TEMPERATURE` | `0.2` | 改写是收敛任务 |
 | `lib/rewrite.js` | `TIMEOUT_MS` | `120000` | 单次调用超时（与页面取消信号合并） |
@@ -218,6 +219,25 @@ npm run verify  # check + test
 ## 致谢
 
 骨架来自 DSH 自带 `cordis-plugin-development` 技能的 `templates/decoration`，路由写法参考了 `dsh-session-log-export`，模型调用参考了 `dsh-session-title-llm`。
+
+## 本地实验（v1.6 草稿，未发布）
+
+一次点击内部最多跑两遍，但外部交互一个字没变：点按钮 → 优化 → 结果直接落到输入框。
+
+1. **七段可执行模板**：system prompt 重写为「目标 / 已知与未知（未知写成假设条款，禁止占位符）/ 约束（用户原话原样保留）/ 交付物与验收（必须可判定）/ 方法 / 验证 / 边界与停止条件」。
+2. **锚点账本**：`lib/rewrite.js` 的 `extractAnchors` / `verifyAnchors` 是纯确定性函数，抽取草稿里的数字、日期、路径、URL、引号原文、否定约束，改写后逐个核对，不额外调用模型。
+3. **自动补回**：`lib/handler.js` 里只要有一个锚点丢了，就用 `buildRepairMessages` 发一次修复请求；只有修完锚点更多才采纳，否则保留第一版。SSE 会先发一个 `reset` 帧，让前端清掉第一遍的文本。
+4. **反向账本**：同一套锚点也用来查「原文没有、改写却写出来了」的事实。路径、链接、日期算高危，会触发一次修复让模型删掉；数字、引用、否定约束算低危，只在凭证行提示。
+5. **卡片凭证行**：结果卡片底部一行小字，例如 `锚点 4/4 保留 · 已自动补回`；有缺项或编造时用警示色，并在 title 里列出具体是哪些。
+
+本地验证（不需要重启 DSH，也不需要联网）：
+
+```
+npm run verify              # 语法检查 + 92 个单元测试
+node tools/local-demo.mjs   # 假模型跑真实路由，打印七段指令、锚点、账本与修复指令
+```
+
+Host 半（`lib/*.js`）在 DSH 进程启动时加载，所以界面上的凭证行要重启 DSH 之后才看得到；只改 client 的话刷新页面即可。
 
 ## License
 
