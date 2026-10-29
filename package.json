@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-prompt-optimizer",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "private": true,
   "type": "module",
   "description": "Adds an Optimize button to the DeepSeek Harness composer: it rewrites the draft into a structured professional prompt and shows a before/after diff before anything is written back.",
