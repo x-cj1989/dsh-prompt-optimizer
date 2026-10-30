@@ -2,6 +2,21 @@
 
 本文件记录本插件所有值得注意的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.6.0] - 2026-10-30
+
+目标：不再只是「把草稿改写得更专业」，而是让改写真正提高任务被做成的概率，并且可以被度量。
+
+### 新增
+- **模型自适应**：新文件 `lib/model-profile.js` 按模型 id 判断推理型 / 指令型。推理型不再被要求「先规划」（预算已花在推理里），改为要求「正文不复述推理」，输出预算给到 `REASONING_MODEL_BUDGET = 8000`；指令型保留 plan-first 并要求一个极短示例。`buildSystemPrompt(preset, { model, provider })` 在其后追加这段画像；不传模型时提示词与 1.5.4 完全一致。
+- **静态契约检查**：新文件 `lib/contract.js` 的 `checkContract(text)` 检查占位符、正文前寒暄、可判定的验收、验证方式、停止条件、超长与泄密，返回 `{ ok, score, issues }`。优化响应（JSON 与 SSE done 帧）新增 `contract`，客户端在结果卡片底部显示「契约检查：n 项待补」并可用 title 查看逐条原因。
+- **评测回路 `bench/`**：`bench/drafts.jsonl` 20 条真实草稿 + `bench/run.mjs`。Level 1 离线契约检查（`npm run bench -- --check`，可进 CI）；Level 2 原稿 vs 优化稿双盲判分，四维（satisfies / fidelity / executable / format）0–5，左右顺序按条目奇偶翻转，输出胜率与逐条明细。`bench/README.md` 写明用法与判读规则（胜率 ≤ 50% 视为改动无效）。
+- **响应携带模型画像**：优化响应新增 `profile: { family, reasoning, tokenBudget }`；`/models` 增加 `profile` 与 `maxOutputTokensLimit`。
+
+### 变更
+- **输出预算提高**：`MAX_OUTPUT_TOKENS` 3000 → **6000**；`MAX_OUTPUT_TOKENS_LIMIT` 4000 → **12000**；空响应重试上限 `RETRY_TOKEN_CAP` 8000 → **24000**；设置页档位改为 3000 / 6000 / 8000 / 12000（旧文件里的 1600 仍可用，只是偏小）。
+- 设置面板「最大长度」默认值随 `normalizeSettings` 变为 6000。
+- `SYSTEM_PROMPT` 增加第 7 条：可执行任务必须写清验证方式（命令、测试或产物），并说明失败时报告什么。
+
 ## [1.5.4] - 2026-10-29
 
 ### 修复

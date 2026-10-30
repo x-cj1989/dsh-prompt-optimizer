@@ -273,3 +273,24 @@ test('POST /models is a 405', async () => {
   const { routes } = makeRoutes();
   assert.equal((await routes.models(new Request(`${ORIGIN}${MODELS_ROUTE}`, { method: 'POST' }))).status, 405);
 });
+
+test('the response carries the model profile and a contract check', async () => {
+  const { routes } = makeRoutes({
+    services: { defaultModel: { currentSelection: () => ({ provider: 'deepseek', model: 'deepseek-v4.1-flash' }) } },
+    deltas: ['# 目标\n- x\n\n# 验收\n- 跑测试\n\n# 验证\n- npm test\n\n# 停止条件\n- 失败即报告'],
+  });
+  const payload = await (await routes.optimize(postJson({ text: 'x' }))).json();
+  assert.equal(payload.profile.family, 'reasoning');
+  assert.equal(payload.profile.reasoning, true);
+  assert.equal(payload.contract.ok, true);
+  assert.ok(payload.contract.score > 0);
+});
+
+test('the system prompt is tuned to the selected reasoning model', async () => {
+  const { routes, llm } = makeRoutes({
+    services: { defaultModel: { currentSelection: () => ({ provider: 'deepseek', model: 'deepseek-v4.1-flash' }) } },
+  });
+  await routes.optimize(postJson({ text: 'x' }));
+  assert.match(llm.seen[0].system, /reasoning-style/);
+  assert.equal(llm.seen[0].maxTokens, 6000);
+});

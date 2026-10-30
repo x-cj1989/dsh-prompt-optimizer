@@ -66,6 +66,7 @@ const MAX_DRAFT_CHARS = 120000;
       'panel.stats': '{from} → {to} 字',
       'panel.lines': '{added} 行新增 / {removed} 行删除',
       'panel.anchors': '锚点 {kept}/{total} 保留',
+      'panel.contract': '契约检查：{n} 项待补',
       'panel.anchorsMissing': '缺 {n} 处',
       'panel.chunks': '分 {n} 段',
       'panel.repairedOnly': '已删掉编造内容',
@@ -176,6 +177,7 @@ const MAX_DRAFT_CHARS = 120000;
       'panel.waiting': 'Thinking…',
       'panel.settings': 'Settings',
       'panel.preset': 'Preset',
+      'panel.contract': 'Contract: {n} gap(s)',
       'error.noText': 'The model returned no text — it may have spent the whole output limit on reasoning. Raise the maximum length and retry.',
       'panel.candidates': 'Candidates',
       'panel.maxTokens': 'Max length',
@@ -545,6 +547,23 @@ function countChars(text) {
       return { anchors: total, kept: Math.max(0, Math.min(total, kept)), missing, repaired: value.repaired === true, added };
     }
 
+    /** Keep only a well-formed contract result; anything else means "no claim". */
+    function normalizeContract(value) {
+      if (value === null || typeof value !== 'object') return null;
+      const score = Number(value.score);
+      if (!Number.isFinite(score)) return null;
+      const issues = Array.isArray(value.issues)
+        ? value.issues
+          .filter((item) => item !== null && typeof item === 'object' && typeof item.code === 'string')
+          .map((item) => ({
+            code: item.code,
+            severity: typeof item.severity === 'string' ? item.severity : 'info',
+            message: typeof item.message === 'string' ? item.message : '',
+          }))
+        : [];
+      return { ok: value.ok === true, score, issues };
+    }
+
     async function optimizeRequest({ text, target, temperature, signal, onMeta, onDelta, onReset }) {
       const body = { text, temperature };
       if (target !== null && target !== undefined && target.provider !== '' && target.model !== '') {
@@ -582,7 +601,7 @@ function countChars(text) {
             partial += event.text;
             onDelta?.(event.text);
           } else if (event.type === 'done') {
-            final = { text: typeof event.text === 'string' ? event.text : '', provider: event.provider, model: event.model, ledger: event.ledger ?? null };
+            final = { text: typeof event.text === 'string' ? event.text : '', provider: event.provider, model: event.model, ledger: event.ledger ?? null, contract: event.contract ?? null };
           } else if (event.type === 'error') {
             failure = typeof event.message === 'string' && event.message !== '' ? event.message : 'stream failed';
           }
@@ -593,7 +612,7 @@ function countChars(text) {
           feed(decoder.decode(value, { stream: true }));
         }
         if (failure !== '') throw new Error(failure);
-        const merged = final === null ? { text: partial, provider: target?.provider ?? '', model: target?.model ?? '', ledger: null } : final;
+        const merged = final === null ? { text: partial, provider: target?.provider ?? '', model: target?.model ?? '', ledger: null, contract: null } : final;
         return merged;
       }
 
@@ -608,6 +627,7 @@ function countChars(text) {
         provider: typeof payload?.provider === 'string' ? payload.provider : '',
         model: typeof payload?.model === 'string' ? payload.model : '',
         ledger: payload?.ledger ?? null,
+        contract: payload?.contract ?? null,
       };
     }
 
@@ -663,6 +683,8 @@ function countChars(text) {
         error: '',
         /** Anchor ledger from the host: { anchors, kept, missing, repaired }. */
         ledger: null,
+        /** Static contract check from the host: { ok, score, issues }. */
+        contract: null,
         provider: '',
         model: '',
         models: [],
@@ -818,6 +840,7 @@ function countChars(text) {
             partial: '',
             error: '',
             ledger: null,
+            contract: null,
             adopted: false,
             copied: false,
             direct,
@@ -846,6 +869,7 @@ function countChars(text) {
               provider: typeof outcome.provider === 'string' && outcome.provider !== '' ? outcome.provider : state.provider,
               model: typeof outcome.model === 'string' && outcome.model !== '' ? outcome.model : state.model,
               ledger: ledgerWithChunks(normalizeLedger(outcome.ledger), outcome.ledger),
+              contract: normalizeContract(outcome.contract),
               history: pushHistory({ ts: Date.now(), source: draft, result: text_, provider: outcome.provider ?? '', model: outcome.model ?? '', sessionId: sessionId === undefined ? '' : String(sessionId) }),
             });
             if (state.autoWrite === true || state.direct === true) {
@@ -1387,6 +1411,14 @@ function makeControl(t, store, localeService) {
 
         const notes = [];
         if (state.copied) notes.push(h('div', { key: 'copied', className: 'dsh-po-note' }, t('panel.adoptedCopy', '当前环境无法写回输入框，已复制到剪贴板')));
+        const contract = normalizeContract(state.contract);
+        if (ready && contract !== null && contract.issues.length > 0) {
+          notes.push(h('div', {
+            key: 'contract',
+            className: 'dsh-po-note' + (contract.ok === true ? '' : ' is-warn'),
+            title: contract.issues.map((issue) => issue.message).join(' · '),
+          }, format(t('panel.contract', '契约检查：{n} 项待补'), { n: contract.issues.length })));
+        }
         if (hasLedger) notes.push(h('div', { key: 'ledger', className: 'dsh-po-note' + (ledger.missing.length > 0 || ledger.added.some((entry) => entry.risk === 'high') ? ' is-warn' : ''), title: ledgerTip === '' ? undefined : ledgerTip }, ledgerText));
         if (!compatible) notes.push(h('div', { key: 'compat', className: 'dsh-po-note is-warn' }, format(t('panel.compat', '本插件按 DSH ≥ {required} 开发，当前 {current}'), { required: REQUIRED_DSH, current: state.version })));
         if (failed && state.error !== '') notes.push(h('div', { key: 'failed', className: 'dsh-po-note is-error' }, format(t('error.failed', '优化失败：{message}'), { message: state.error })));
@@ -1426,7 +1458,7 @@ function makeControl(t, store, localeService) {
                 value: String(settings.maxOutputTokens),
                 disabled: busy,
                 onChange: (event) => store.setSetting('maxOutputTokens', Number(event?.target?.value)),
-              }, ...[800, 1600, 2400, 3200].map((tokens) => h('option', { key: `k${tokens}`, value: String(tokens) }, String(tokens)))),
+              }, ...[3000, 6000, 8000, 12000].map((tokens) => h('option', { key: `k${tokens}`, value: String(tokens) }, String(tokens)))),
               h('label', { key: 'tpl', className: 'dsh-po-note' }, t('panel.temperature', '温度')),
               h('select', {
                 key: 'tpv',

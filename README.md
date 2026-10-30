@@ -76,7 +76,7 @@ pnpm --dir ~/.dsh/profiles/<profile> add link:<本仓库的绝对路径>
 |---|---|---|---|
 | 预设 | 通用 / 写作 / 编程 / 分析 / 智能体任务 | 通用 | 在基础改写规则上追加一段该场景的取向说明（例如编程场景强调「验收标准与错误处理」） |
 | 候选数 | 1 / 2 / 3 | 1 | 并行生成多版，Host 按结构完整度打分挑最好的一版，其余丢弃 |
-| 最大长度 | 800 / 1600 / 2400 / 3200 | 1600 | 单次输出的 token 上限 |
+| 最大长度 | 3000 / 6000 / 8000 / 12000 | 6000 | 单次输出的 token 上限；思考型模型总会拿到不低于 `DEFAULT_MODEL_BUDGET`、且不低于你设的值的预算 |
 | 温度 | 0.2 稳定 / 0.5 / 0.7 灵活 / 1.0 | 0.2 | 改写是收敛任务，低温度让同一稿两次结果基本一致 |
 
 - 设置存在 `~/.dsh/prompt-optimizer.json`（原子写入：先写临时文件再改名），**换浏览器、重启应用都还在**；「恢复默认」会把文件写回出厂值。
@@ -109,11 +109,14 @@ index.js          Host 半 ─ 把 lib/handler.js 的三条路由挂到已认证
                   ├ GET  /api/prompt.optimize/models   模型目录 + profile 默认
                   └ GET/POST /api/prompt.optimize/settings 读取 / 保存偏好
 lib/rewrite.js    纯规则：校验、字数预算、去围栏、温度夹取、预设、候选打分、SYSTEM_PROMPT
+lib/model-profile.js 模型画像：推理型 vs 指令型，决定 system prompt 与输出预算
+lib/contract.js   静态契约检查：占位符 / 验收 / 验证 / 停止条件 / 泄密
 lib/settings.js   ~/.dsh/prompt-optimizer.json 的原子读写与校验
 lib/handler.js    Request → Response：405/400/413/502/503、SSE 帧、超时合并
 client.js         Client 半 ─ 两个槽位
                   ├ conversation.input.right   ✨ 按钮（order 20）
                   └ conversation.composer.dock 对比卡片（order 5，idle 时渲染 null）
+bench/run.mjs     两层评测：离线契约检查（Level 1）+ 双盲判分（Level 2）
 ```
 
 - 路由走页面**同源 fetch**，用浏览器自己的签名 cookie 过鉴权，插件里不放任何 token，也就不存在把密钥写进前端的问题。
@@ -126,7 +129,10 @@ client.js         Client 半 ─ 两个槽位
 |---|---|---|---|
 | `lib/rewrite.js` | `MAX_INPUT_CHARS` | `24000` | 单次调用预算；超过就按段落切段、逐段改写后按顺序拼回，不丢内容 |
 | `lib/rewrite.js` | `MAX_DRAFT_CHARS` | `120000` | 硬上限：超过才 413（提示用户分几次优化） |
-| `lib/rewrite.js` | `MAX_OUTPUT_TOKENS` | `3000` | 一次改写的输出上限；模型一个字没写时自动用双倍预算（上限 8000）重试一次 |
+| `lib/rewrite.js` | `MAX_OUTPUT_TOKENS` | `6000` | 一次改写的输出上限（不低于模型画像给出的预算）；模型一个字没写时自动用双倍预算（上限 24000）重试一次 |
+| `lib/rewrite.js` | `MAX_OUTPUT_TOKENS_LIMIT` | `12000` | 设置页与 API 允许的最大输出预算 |
+| `lib/model-profile.js` | `DEFAULT_MODEL_BUDGET` / `REASONING_MODEL_BUDGET` | `6000` / `8000` | 按模型家族给出的输出预算；只会抬高，不会压低用户设置 |
+| `lib/contract.js` | `CONTRACT_WEIGHTS` | 见文件 | 静态契约检查的扣分权重（占位符 30、验收 20、验证 20、泄密 40…） |
 | `lib/rewrite.js` | `DEFAULT_TEMPERATURE` | `0.2` | 改写是收敛任务 |
 | `lib/rewrite.js` | `TIMEOUT_MS` | `120000` | 单次调用超时（与页面取消信号合并） |
 | `lib/rewrite.js` | `SYSTEM_PROMPT` | 见文件 | 改写规则本身，想改风格就改这里 |
@@ -188,12 +194,13 @@ Host 日志（`%TEMP%\dsh-prompt-optimizer.log`）会记下每次实际用的 `p
 ## 开发与测试
 
 ```bash
-npm test        # node --test，81 个用例，无需安装依赖
-npm run check   # 五个入口文件的 node --check 语法检查
+npm test        # node --test，126 个用例，无需安装依赖
+npm run check   # 七个入口文件的 node --check 语法检查
 npm run verify  # check + test
+npm run bench   # 离线跑 bench/drafts.jsonl 的契约检查（Level 1，不联网）
 ```
 
-- 测试用 Node 内置 runner，零依赖：`test/rewrite.test.js`（规则/预设/候选打分）、`test/handler.test.js`（路由/SSE/错误码/设置读写）、`test/settings.test.js`（设置文件的合并、校验、原子写入）、`test/client.test.js`（伪浏览器里加载 `client.js`，验证槽位注册、diff、SSE 分帧、采纳与撤销、设置面板读写）、`test/package.test.js`（清单/文件列表/双语字典/README 结构一致性）。
+- 测试用 Node 内置 runner，零依赖：`test/rewrite.test.js`（规则/预设/候选打分）、`test/handler.test.js`（路由/SSE/错误码/设置读写）、`test/settings.test.js`（设置文件的合并、校验、原子写入）、`test/client.test.js`（伪浏览器里加载 `client.js`，验证槽位注册、diff、SSE 分帧、采纳与撤销、设置面板读写）、`test/model-profile.test.js`（模型画像与 system prompt 追加）、`test/contract.test.js`（契约检查的扣分与严重级别）、`test/package.test.js`（清单/文件列表/双语字典/README 结构一致性）。
 - 改完代码用 `plugin_manager` 重装一次（先 `remove_bundle`），再 Ctrl+R 刷新页面看效果。
 
 ## 目录结构
@@ -204,12 +211,15 @@ npm run verify  # check + test
 ├── cordis.patch.yml     Loader 补丁：把本插件插进 profile
 ├── index.js             Host 半入口（挂路由）
 ├── lib/rewrite.js       纯改写规则与校验
+├── lib/model-profile.js 模型家族画像（决定提示词与预算）
+├── lib/contract.js      静态契约检查
 ├── lib/settings.js      偏好文件的原子读写
 ├── lib/handler.js       三条路由的 Request → Response 实现
 ├── client.js            Client 半（按钮 + 对比卡片）
 ├── locale/{en,zh}.json  插件在「插件」页里的标题与描述
 ├── icon.svg             插件图标
 ├── test/*.test.js       单元测试
+├── bench/               评测：drafts.jsonl + 两层 runner + 判读规则
 ├── CHANGELOG.md         版本记录
 └── LICENSE              MIT
 ```
@@ -220,24 +230,37 @@ npm run verify  # check + test
 
 骨架来自 DSH 自带 `cordis-plugin-development` 技能的 `templates/decoration`，路由写法参考了 `dsh-session-log-export`，模型调用参考了 `dsh-session-title-llm`。
 
-## 本地实验（v1.6 草稿，未发布）
+## 1.6.0 新增：模型自适应、契约检查与 bench
 
-一次点击内部最多跑两遍，但外部交互一个字没变：点按钮 → 优化 → 结果直接落到输入框。
+### 模型自适应
 
-1. **七段可执行模板**：system prompt 重写为「目标 / 已知与未知（未知写成假设条款，禁止占位符）/ 约束（用户原话原样保留）/ 交付物与验收（必须可判定）/ 方法 / 验证 / 边界与停止条件」。
-2. **锚点账本**：`lib/rewrite.js` 的 `extractAnchors` / `verifyAnchors` 是纯确定性函数，抽取草稿里的数字、日期、路径、URL、引号原文、否定约束，改写后逐个核对，不额外调用模型。
-3. **自动补回**：`lib/handler.js` 里只要有一个锚点丢了，就用 `buildRepairMessages` 发一次修复请求；只有修完锚点更多才采纳，否则保留第一版。SSE 会先发一个 `reset` 帧，让前端清掉第一遍的文本。
-4. **反向账本**：同一套锚点也用来查「原文没有、改写却写出来了」的事实。路径、链接、日期算高危，会触发一次修复让模型删掉；数字、引用、否定约束算低危，只在凭证行提示。
-5. **卡片凭证行**：结果卡片底部一行小字，例如 `锚点 4/4 保留 · 已自动补回`；有缺项或编造时用警示色，并在 title 里列出具体是哪些。
+`lib/model-profile.js` 按模型 id 判断家族：推理型（thinking / reasoner / flash / o1o3o4 / gpt-5 …）与指令型。
 
-本地验证（不需要重启 DSH，也不需要联网）：
+- 推理型：system prompt 不再要求「先规划」（那份预算已经花在推理上了），追加「正文不要复述推理过程」，输出预算按下限 `REASONING_MODEL_BUDGET = 8000` 给。
+- 指令型：保留 plan-first 规则，并要求给一个极短的输出形状示例。
+- 认不出来的模型按指令型处理，行为与 1.5.4 一致。
 
+### 静态契约检查
+
+`lib/contract.js` 不调模型，只看结果文本：占位符（`[待补充]`、`TODO`…）、正文前的寒暄（`Here is…`）、有没有可判定的验收、有没有验证方式、有没有停止条件、是否超长、是否泄密（`sk-…`、`ghp_…`）。
+
+- 返回 `{ ok, score, issues }`；`ok` 只由 error 级问题决定（占位符、泄密）。
+- 结果卡片底部显示「契约检查：n 项待补」，`title` 里是逐条原因；接口响应里也带 `contract`，可被上层消费。
+
+### bench：改动的判决器
+
+`bench/` 解决「怎么知道优化真的让任务更容易完成」：Level 1 离线契约检查（可进 CI），Level 2 原稿 vs 优化稿双盲判分（四维 0–5，左右顺序按奇偶翻转）。用法与判读规则见 [bench/README.md](bench/README.md)。
+
+```bash
+npm run bench -- --check   # Level 1
+npm run bench -- --limit 3 # Level 2（需 PO_BENCH_* 环境变量）
 ```
-npm run verify              # 语法检查 + 92 个单元测试
-node tools/local-demo.mjs   # 假模型跑真实路由，打印七段指令、锚点、账本与修复指令
-```
 
-Host 半（`lib/*.js`）在 DSH 进程启动时加载，所以界面上的凭证行要重启 DSH 之后才看得到；只改 client 的话刷新页面即可。
+### 输出预算
+
+`MAX_OUTPUT_TOKENS` 3000 → **6000**，设置档位改为 3000 / 6000 / 8000 / 12000，重试上限 8000 → **24000**，`MAX_OUTPUT_TOKENS_LIMIT` 4000 → **12000**。旧配置文件里的小值仍会被夹在 `MIN_OUTPUT_TOKENS` 与上限之间，不会被静默放大。
+
+Host 半（`lib/*.js`）在 DSH 进程启动时加载，所以要重启 DSH 才生效；只改 `client.js` 刷新页面即可。
 
 ## License
 

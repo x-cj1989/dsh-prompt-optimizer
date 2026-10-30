@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-prompt-optimizer",
-  "version": "1.5.4",
+  "version": "1.6.0",
   "private": true,
   "type": "module",
   "description": "Adds an Optimize button to the DeepSeek Harness composer: it rewrites the draft into a structured professional prompt and shows a before/after diff before anything is written back.",
@@ -20,7 +20,8 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --check index.js && node --check client.js && node --check lib/rewrite.js && node --check lib/handler.js && node --check lib/settings.js",
+    "check": "node --check index.js && node --check client.js && node --check lib/rewrite.js && node --check lib/handler.js && node --check lib/settings.js && node --check lib/contract.js && node --check lib/model-profile.js && node --check bench/run.mjs",
+    "bench": "node bench/run.mjs",
     "verify": "npm run check && npm test"
   },
   "exports": {
@@ -29,7 +30,7 @@
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
-  "files": ["index.js", "client.js", "lib", "cordis.patch.yml", "locale/*.json", "icon.svg", "CHANGELOG.md", "LICENSE"],
+  "files": ["index.js", "client.js", "lib", "bench", "cordis.patch.yml", "locale/*.json", "icon.svg", "CHANGELOG.md", "LICENSE"],
   "dsh": {
     "bundle": { "patch": "./cordis.patch.yml" },
     "client": {

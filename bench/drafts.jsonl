@@ -1,0 +1,20 @@
+{"id":"video-net","preset":"general","text":"帮我用 blender 把六棱柱展开图做成视频，要能看出折叠和展开，暗色调，最好有字幕"}
+{"id":"code-bug","preset":"coding","text":"我们的 api 偶发 502，日志里是 upstream exploded，只在并发 20 以上出现，帮我定位并修掉"}
+{"id":"refactor","preset":"coding","text":"lib/handler.js 太长了，帮我拆分，别改行为，测试要全绿"}
+{"id":"research","preset":"analysis","text":"查一下 2024 年以后有没有比 RAG 更好的长文本方案，要有出处，别用营销稿"}
+{"id":"weekly","preset":"writing","text":"写个周报，这周做了登录改造、修了 3 个线上 bug，下周做支付"}
+{"id":"email","preset":"writing","text":"给客户写封邮件，解释交付延期两周，语气专业但不卑不亢，给出新的里程碑"}
+{"id":"data","preset":"analysis","text":"这份 csv 有 12 万行，按城市和月份统计销售额，找出异常，出图"}
+{"id":"ppt","preset":"general","text":"做个 10 页的汇报 ppt，讲我们为什么要把单体拆成服务"}
+{"id":"doc","preset":"writing","text":"把这段接口文档改成人能看懂的中文，补上错误码和示例"}
+{"id":"test","preset":"coding","text":"给 settings 模块补单测，覆盖坏文件、越界数字、并发写"}
+{"id":"deploy","preset":"agent","text":"把这套服务部署到 windows 服务器，开机自启，日志按天切"}
+{"id":"perf","preset":"coding","text":"首页首屏 4 秒，查一下瓶颈在哪，给可落地的优化方案"}
+{"id":"explain","preset":"general","text":"用高中生能懂的话解释什么是特征值和特征向量"}
+{"id":"sql","preset":"coding","text":"这条 sql 很慢，帮我改写，表和索引如下"}
+{"id":"review","preset":"analysis","text":"帮我 review 这个 pr，重点看边界条件和错误处理"}
+{"id":"plan","preset":"agent","text":"下个月要上线新版本，帮我排一个三周的开发计划，人手两个后端一个前端"}
+{"id":"copy","preset":"writing","text":"给这个新功能想 5 个 slogan，别太土"}
+{"id":"math","preset":"general","text":"帮我算一下这个积分的推导过程"}
+{"id":"ops","preset":"agent","text":"磁盘快满了，先别删东西，帮我排查是哪些目录在涨"}
+{"id":"translate","preset":"writing","text":"把这份英文合同翻成中文，术语要准，保留编号"}
