@@ -36,6 +36,18 @@ node bench/run.mjs --limit 3
 - 改写走插件的 `/api/prompt.optimize`；裁判默认打 `/chat/completions`，可用 `PO_BENCH_JUDGE_URL` 指向别的 OpenAI 兼容端点。
 - 输出胜率、胜/平/负、原稿→优化稿均分、优化稿契约均分，以及逐条明细。裁判返回的 JSON 解析不出来时，该条记为 `null` 并继续（不会拿坏数据充数）。
 
+## Level 3：答案级对照（`bench/answer_level/`）
+
+评测对象从「改写稿」换成**最终答案**：同一条任务、同一个答题员，只换系统提示（A = 裸基线，B = 插件 `buildSystemPrompt`），把两侧答案交给裁判盲判。
+
+```powershell
+node bench/answer_level/score.mjs     # 用 judge_scores*.json 出胜率与 Wilson 区间
+```
+
+- 任务集 `tasks.json`，两侧答案 `answers_a.json` / `answers_b.json`，裁判打分 `judge_scores*.json`，汇总 `summary.json`，结论 `report.md`。
+- 左右顺序由 `judge_key.json` 随机交换（X/Y），裁判不知道哪侧是哪侧。
+- 结论要同时看**胜率、Wilson 95% 区间、逐任务侧别一致率**：区间跨过 0.5 或一致率接近抛硬币时，不能说「插件更好」。
+
 ## 判读规则
 
 - **Level 1 变好但 Level 2 没变**：说明改动只是在「看起来更专业」上加字，没让任务更容易完成。

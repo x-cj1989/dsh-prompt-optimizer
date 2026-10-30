@@ -1,0 +1,398 @@
+{
+  "judges": [
+    {
+      "name": "lead-spark-x2.6",
+      "scores": [
+        {
+          "id": "t01",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 5,
+            "no_fabrication": 4
+          },
+          "Y": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 4
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t02",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 5,
+            "actionability": 3,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 5,
+            "no_fabrication": 5
+          },
+          "winner": "Y"
+        },
+        {
+          "id": "t03",
+          "X": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t04",
+          "X": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 5,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t05",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 5,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t06",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 5,
+            "no_fabrication": 4
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 5,
+            "no_fabrication": 4
+          },
+          "winner": "Y"
+        },
+        {
+          "id": "t07",
+          "X": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 3,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t08",
+          "X": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 5,
+            "no_fabrication": 4
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 5,
+            "no_fabrication": 4
+          },
+          "winner": "tie"
+        },
+        {
+          "id": "t09",
+          "X": {
+            "correctness": 5,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "tie"
+        },
+        {
+          "id": "t10",
+          "X": {
+            "correctness": 3,
+            "constraint_compliance": 2,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 3,
+            "constraint_compliance": 2,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "tie"
+        },
+        {
+          "id": "t11",
+          "X": {
+            "correctness": 5,
+            "constraint_compliance": 4,
+            "actionability": 5,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t12",
+          "X": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        }
+      ]
+    },
+    {
+      "name": "judge2",
+      "scores": [
+        {
+          "id": "t01",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 5,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t02",
+          "X": {
+            "correctness": 3,
+            "constraint_compliance": 3,
+            "actionability": 3,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 5,
+            "no_fabrication": 5
+          },
+          "winner": "Y"
+        },
+        {
+          "id": "t03",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 3,
+            "actionability": 4,
+            "no_fabrication": 3
+          },
+          "Y": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "Y"
+        },
+        {
+          "id": "t04",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 4
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "Y"
+        },
+        {
+          "id": "t05",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "Y"
+        },
+        {
+          "id": "t06",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 5,
+            "no_fabrication": 5
+          },
+          "winner": "Y"
+        },
+        {
+          "id": "t07",
+          "X": {
+            "correctness": 5,
+            "constraint_compliance": 5,
+            "actionability": 5,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 4,
+            "constraint_compliance": 3,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t08",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 5,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t09",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 3,
+            "constraint_compliance": 4,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t10",
+          "X": {
+            "correctness": 3,
+            "constraint_compliance": 2,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 3,
+            "constraint_compliance": 2,
+            "actionability": 3,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t11",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 3,
+            "actionability": 5,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 4,
+            "constraint_compliance": 3,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "X"
+        },
+        {
+          "id": "t12",
+          "X": {
+            "correctness": 4,
+            "constraint_compliance": 5,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "Y": {
+            "correctness": 4,
+            "constraint_compliance": 5,
+            "actionability": 4,
+            "no_fabrication": 5
+          },
+          "winner": "tie"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,327 @@
+{
+  "tasks": 12,
+  "sides": {
+    "baseline": "a",
+    "plugin": "b"
+  },
+  "judges": [
+    {
+      "name": "lead-spark-x2.6",
+      "wins": 8,
+      "losses": 1,
+      "ties": 3,
+      "winRate": 0.667,
+      "wilson95": [
+        0.391,
+        0.862
+      ],
+      "meanDelta": 0.25,
+      "dims": {
+        "correctness": {
+          "plugin": 4.67,
+          "baseline": 4.42,
+          "delta": 0.25
+        },
+        "constraint_compliance": {
+          "plugin": 4.42,
+          "baseline": 4,
+          "delta": 0.42
+        },
+        "actionability": {
+          "plugin": 4.5,
+          "baseline": 4.17,
+          "delta": 0.33
+        },
+        "no_fabrication": {
+          "plugin": 4.75,
+          "baseline": 4.75,
+          "delta": 0
+        }
+      },
+      "perTask": [
+        {
+          "id": "t01",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": 1,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t02",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 1,
+            "constraint_compliance": 0,
+            "actionability": 2,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t03",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 1,
+            "actionability": 0,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t04",
+          "win": "baseline",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": -1,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t05",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": 1,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t06",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 1,
+            "constraint_compliance": 1,
+            "actionability": 0,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t07",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 2,
+            "actionability": 0,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t08",
+          "win": "tie",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": 0,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t09",
+          "win": "tie",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": 0,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t10",
+          "win": "tie",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": 0,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t11",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 1,
+            "constraint_compliance": 0,
+            "actionability": 1,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t12",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 1,
+            "actionability": 0,
+            "no_fabrication": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "judge2",
+      "wins": 8,
+      "losses": 3,
+      "ties": 1,
+      "winRate": 0.667,
+      "wilson95": [
+        0.391,
+        0.862
+      ],
+      "meanDelta": 0.292,
+      "dims": {
+        "correctness": {
+          "plugin": 4.25,
+          "baseline": 3.83,
+          "delta": 0.42
+        },
+        "constraint_compliance": {
+          "plugin": 4.08,
+          "baseline": 3.75,
+          "delta": 0.33
+        },
+        "actionability": {
+          "plugin": 4.42,
+          "baseline": 3.92,
+          "delta": 0.5
+        },
+        "no_fabrication": {
+          "plugin": 4.83,
+          "baseline": 4.92,
+          "delta": -0.08
+        }
+      },
+      "perTask": [
+        {
+          "id": "t01",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": 1,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t02",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 2,
+            "constraint_compliance": 2,
+            "actionability": 2,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t03",
+          "win": "baseline",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": -1,
+            "actionability": 0,
+            "no_fabrication": -2
+          }
+        },
+        {
+          "id": "t04",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 1,
+            "constraint_compliance": 1,
+            "actionability": 0,
+            "no_fabrication": 1
+          }
+        },
+        {
+          "id": "t05",
+          "win": "baseline",
+          "deltas": {
+            "correctness": -1,
+            "constraint_compliance": -1,
+            "actionability": 0,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t06",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 1,
+            "constraint_compliance": 1,
+            "actionability": 1,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t07",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 1,
+            "constraint_compliance": 2,
+            "actionability": 1,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t08",
+          "win": "baseline",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": -1,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t09",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 1,
+            "constraint_compliance": 0,
+            "actionability": 0,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t10",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": 1,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t11",
+          "win": "plugin",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": 1,
+            "no_fabrication": 0
+          }
+        },
+        {
+          "id": "t12",
+          "win": "tie",
+          "deltas": {
+            "correctness": 0,
+            "constraint_compliance": 0,
+            "actionability": 0,
+            "no_fabrication": 0
+          }
+        }
+      ]
+    }
+  ],
+  "kappa": {
+    "observed": 0.417,
+    "expected": 0.5,
+    "value": -0.167,
+    "note": "blind A/B winner agreement (X/Y position, not side)"
+  }
+}
