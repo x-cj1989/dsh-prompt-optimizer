@@ -1,0 +1,22 @@
+{
+ "video-net": "B",
+ "code-bug": "A",
+ "refactor": "B",
+ "research": "A",
+ "weekly": "B",
+ "email": "A",
+ "data": "B",
+ "ppt": "A",
+ "doc": "B",
+ "test": "A",
+ "deploy": "B",
+ "perf": "A",
+ "explain": "B",
+ "sql": "A",
+ "review": "B",
+ "plan": "A",
+ "copy": "B",
+ "math": "A",
+ "ops": "B",
+ "translate": "A"
+}

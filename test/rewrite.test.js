@@ -138,7 +138,13 @@ test('buildMessages stamps one user message with the plugin source kind', () => 
 });
 
 test('SYSTEM_PROMPT carries the load-bearing rewrite rules', () => {
-  for (const needle of ['senior prompt engineer', 'Preserve the user intent', 'same language', 'No preamble']) {
+  for (const needle of [
+    'senior prompt engineer',
+    'Preserve the user intent',
+    'same language',
+    'No preamble',
+    'never quote words the user did not write',
+  ]) {
     assert.ok(SYSTEM_PROMPT.includes(needle), `missing rule: ${needle}`);
   }
 });

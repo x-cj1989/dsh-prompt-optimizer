@@ -111,3 +111,16 @@ test('the candidate path also catches an invented fact', async () => {
   assert.equal(payload.ledger.repaired, true);
   assert.equal(llm.seen.length, 3);
 });
+
+test('a quoted constraint the draft never said is high risk', () => {
+  const found = verifyAdded('给 settings 模块补单测', '# 约束\n「测试要全绿」「不改被测代码」\n# 目标\n补单测');
+  const values = found.high.map((entry) => entry.value);
+  assert.ok(values.includes('测试要全绿'), values.join(' | '));
+  assert.ok(values.includes('不改被测代码'), values.join(' | '));
+});
+
+test('quoting the draft own constraint stays clean', () => {
+  const found = verifyAdded('别太土，写 5 个 slogan', '# 约束\n「别太土」，5 个 slogan');
+  assert.deepEqual(found.high, []);
+  assert.deepEqual(found.low, []);
+});

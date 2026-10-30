@@ -2,6 +2,15 @@
 
 本文件记录本插件所有值得注意的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.7.1] - 2026-10-30
+
+### 修复
+- **伪造约束（invented constraint）**：之前模型可以把自己没根据的要求写成「引号里的用户原话」，例如草稿只说「补单测」，改写稿却出现「测试要全绿」「不改被测代码」—— 这等于把作者没说过的话冒充成用户要求，评测按不虚构（no_invention）判负。
+  - `verifyAdded` 的高风险判定从 path/url/date 扩展到 **quote**：引文即对「这是用户原话」的主张，草稿里没有的引文必然是伪造归属（草稿里已有的引文会命中 source.includes，不会误报）。
+  - `SYSTEM_PROMPT` 规则 1 追加「never quote words the user did not write: your own assumption stays an assumption, never an attributed requirement.」，从提示词侧减少这种写法。
+  - 修复是自动闭环的：伪造引文一旦出现就标记为高风险，`lib/handler.js` 三条链路（JSON / SSE / 分块）已有的修复逻辑会立即触发一次「只删除、不新增」的修复轮；`ledgerScore` 对高风险扣分（kept*2 - high*3 - low），删掉伪造引文必然使分数上升，所以修复一定被接受。
+  - 新增两个回归测试：伪造引文判高风险、引用草稿真实约束仍判干净。
+
 ## [1.7.0] - 2026-10-30
 
 ### 新增

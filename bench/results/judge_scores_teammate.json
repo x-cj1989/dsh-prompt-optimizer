@@ -1,0 +1,385 @@
+{
+  "judge": "teammate",
+  "items": [
+    {
+      "id": "video-net",
+      "a": {
+        "executable": 2,
+        "constraints": 3,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 11
+      },
+      "b": {
+        "executable": 4,
+        "constraints": 4,
+        "verification": 5,
+        "no_invention": 4,
+        "total": 17
+      },
+      "winner": "B",
+      "note": "B 给出时长/分辨率等明确标注的假设、可执行的 ffprobe+抽帧验收；A 连时长与验收都缺。"
+    },
+    {
+      "id": "code-bug",
+      "a": {
+        "executable": 4,
+        "constraints": 4,
+        "verification": 5,
+        "no_invention": 3,
+        "total": 16
+      },
+      "b": {
+        "executable": 2,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 12
+      },
+      "winner": "A",
+      "note": "A 补出复现下限与压测验收（但自造 50 并发/10 分钟阈值），B 无任何可验证标准。"
+    },
+    {
+      "id": "refactor",
+      "a": {
+        "executable": 3,
+        "constraints": 4,
+        "verification": 3,
+        "no_invention": 5,
+        "total": 15
+      },
+      "b": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 4,
+        "no_invention": 4,
+        "total": 17
+      },
+      "winner": "B",
+      "note": "B 把「别改行为」落实为 API/错误码/日志不变并给出 diff 校验，A 只有「测试全绿」。"
+    },
+    {
+      "id": "research",
+      "a": {
+        "executable": 4,
+        "constraints": 4,
+        "verification": 4,
+        "no_invention": 4,
+        "total": 16
+      },
+      "b": {
+        "executable": 3,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 13
+      },
+      "winner": "A",
+      "note": "A 补出引用抽查与「未证实」标注，B 无任何出处核验方法。"
+    },
+    {
+      "id": "weekly",
+      "a": {
+        "executable": 4,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 14
+      },
+      "b": {
+        "executable": 5,
+        "constraints": 5,
+        "verification": 4,
+        "no_invention": 4,
+        "total": 18
+      },
+      "winner": "B",
+      "note": "B 显式锁定「不得超出所给事实」并自查数字来源，A 无验收。"
+    },
+    {
+      "id": "email",
+      "a": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 3,
+        "no_invention": 5,
+        "total": 17
+      },
+      "b": {
+        "executable": 4,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 14
+      },
+      "winner": "A",
+      "note": "A 明确「原因未给就只给新日期不编原因」，B 同样缺日期但无验收方式。"
+    },
+    {
+      "id": "data",
+      "a": {
+        "executable": 2,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 12
+      },
+      "b": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 5,
+        "no_invention": 4,
+        "total": 18
+      },
+      "winner": "B",
+      "note": "B 要求先读表头、给出聚合核对与出图验收；A 连列名缺失都未处理。"
+    },
+    {
+      "id": "ppt",
+      "a": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 4,
+        "no_invention": 4,
+        "total": 17
+      },
+      "b": {
+        "executable": 3,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 13
+      },
+      "winner": "A",
+      "note": "A 定出逐页结构与页数核查，B 未定义听众与验收。"
+    },
+    {
+      "id": "doc",
+      "a": {
+        "executable": 2,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 12
+      },
+      "b": {
+        "executable": 4,
+        "constraints": 4,
+        "verification": 3,
+        "no_invention": 4,
+        "total": 15
+      },
+      "winner": "B",
+      "note": "B 通过「拿不到原文就停下」解决输入缺失，A 直接要求改写不存在的文档。"
+    },
+    {
+      "id": "test",
+      "a": {
+        "executable": 4,
+        "constraints": 3,
+        "verification": 4,
+        "no_invention": 2,
+        "total": 13
+      },
+      "b": {
+        "executable": 3,
+        "constraints": 4,
+        "verification": 2,
+        "no_invention": 5,
+        "total": 14
+      },
+      "winner": "B",
+      "note": "A 结构更好但把「测试要全绿」「不改被测代码」当成用户原话塞进约束，属编造要求；B 虽简陋但只含原文。"
+    },
+    {
+      "id": "deploy",
+      "a": {
+        "executable": 2,
+        "constraints": 4,
+        "verification": 3,
+        "no_invention": 5,
+        "total": 14
+      },
+      "b": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 5,
+        "no_invention": 4,
+        "total": 18
+      },
+      "winner": "B",
+      "note": "B 给出 sc query/重启/跨天切分等可判定验收，A 仅列出两个目标状态。"
+    },
+    {
+      "id": "perf",
+      "a": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 4,
+        "no_invention": 4,
+        "total": 17
+      },
+      "b": {
+        "executable": 3,
+        "constraints": 4,
+        "verification": 2,
+        "no_invention": 5,
+        "total": 14
+      },
+      "winner": "A",
+      "note": "A 要求先出测量计划再按收益排序，B 只有 4 秒这个可测基线。"
+    },
+    {
+      "id": "explain",
+      "a": {
+        "executable": 5,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 15
+      },
+      "b": {
+        "executable": 5,
+        "constraints": 5,
+        "verification": 3,
+        "no_invention": 4,
+        "total": 17
+      },
+      "winner": "B",
+      "note": "A 本身已可执行，B 追加受众上限与自查项，验证仍偏弱。"
+    },
+    {
+      "id": "sql",
+      "a": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 4,
+        "no_invention": 5,
+        "total": 18
+      },
+      "b": {
+        "executable": 1,
+        "constraints": 3,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 10
+      },
+      "winner": "A",
+      "note": "A 准确指出「表和索引如下」实际未附并索要 SQL/DDL/EXPLAIN 后停止，B 无从下手。"
+    },
+    {
+      "id": "review",
+      "a": {
+        "executable": 2,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 12
+      },
+      "b": {
+        "executable": 4,
+        "constraints": 4,
+        "verification": 4,
+        "no_invention": 4,
+        "total": 16
+      },
+      "winner": "B",
+      "note": "B 要求每条定位到 diff 行并按严重度分级，A 无验收标准（B 自加了「只评不改」）。"
+    },
+    {
+      "id": "plan",
+      "a": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 4,
+        "no_invention": 4,
+        "total": 17
+      },
+      "b": {
+        "executable": 4,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 14
+      },
+      "winner": "A",
+      "note": "A 给出人·天粒度与人力核查，B 无任何交付验收。"
+    },
+    {
+      "id": "copy",
+      "a": {
+        "executable": 3,
+        "constraints": 3,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 12
+      },
+      "b": {
+        "executable": 4,
+        "constraints": 4,
+        "verification": 3,
+        "no_invention": 3,
+        "total": 14
+      },
+      "winner": "B",
+      "note": "B 把「别太土」落成禁词表并加约束，但把自拟解释写成「已知」且自造 ≤12 字上限。"
+    },
+    {
+      "id": "math",
+      "a": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 4,
+        "no_invention": 5,
+        "total": 18
+      },
+      "b": {
+        "executable": 1,
+        "constraints": 3,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 10
+      },
+      "winner": "A",
+      "note": "A 拒绝自选题目、索要积分式并给 CAS 交叉验证，B 连被积函数都没有。"
+    },
+    {
+      "id": "ops",
+      "a": {
+        "executable": 3,
+        "constraints": 5,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 14
+      },
+      "b": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 4,
+        "no_invention": 4,
+        "total": 17
+      },
+      "winner": "B",
+      "note": "B 明确「全程只读」并给出两次 du 采样确认增长，A 仅有「先别删」。"
+    },
+    {
+      "id": "translate",
+      "a": {
+        "executable": 4,
+        "constraints": 5,
+        "verification": 4,
+        "no_invention": 4,
+        "total": 17
+      },
+      "b": {
+        "executable": 2,
+        "constraints": 4,
+        "verification": 1,
+        "no_invention": 5,
+        "total": 12
+      },
+      "winner": "A",
+      "note": "B 补术语对照表与编号 1:1 抽查，A 因合同未附且不索要而无法开工。"
+    }
+  ]
+}

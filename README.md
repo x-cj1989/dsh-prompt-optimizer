@@ -238,6 +238,14 @@ npm run bench   # 离线跑 bench/drafts.jsonl 的契约检查（Level 1，不�
 - 生效时结果卡片多一行「已接工作区：`<cwd>`」；响应里带 `grounding: { cwd, title } | null`。
 - 上传的只有会话 id、标题（去换行、截断 160 字符）和解析出的目录路径 —— 不含对话内容、文件内容或密钥。
 
+## 1.7.1 修复：伪造约束（把作者没说的话写成「用户原话」）
+
+评测里出现过这样一类失败：草稿只写「给 settings 模块补单测」，改写稿却写出「测试要全绿」「不改被测代码」—— 引号把它们包装成用户的要求，而作者从来没说过。这类伪造归属比漏掉一个锚点更危险，因为它**看起来更可信**。
+
+- `verifyAdded` 的高风险判定从 path / url / date 扩展到 **quote**：引文是对「这是用户原话」的主张，草稿里没有的引文必然是伪造；草稿里已有的引文会被 `source.includes` 命中，不会误报。
+- `SYSTEM_PROMPT` 规则 1 追加「never quote words the user did not write: your own assumption stays an assumption, never an attributed requirement.」，从提示词侧减少这种写法。
+- 修复是自动闭环的：伪造引文一旦出现就被记为高风险，`lib/handler.js` 三条链路（JSON / SSE / 分块）原有的「只删除、不新增」修复轮立即触发；`ledgerScore = kept*2 - high*3 - low` 保证删掉它分数必然上升，所以修复一定被接受。
+
 ## 1.6.0 新增：模型自适应、契约检查与 bench
 
 ### 模型自适应
