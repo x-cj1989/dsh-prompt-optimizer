@@ -2,6 +2,16 @@
 
 本文件记录本插件所有值得注意的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.7.0] - 2026-10-30
+
+### 新增
+- **工作区接地（context grounding）**：点 ✨ 时客户端把 `sessionId` 与会话标题投影随请求上传；Host 通过 `agents` / `workingDirectory` 服务解析出当前会话的工作目录，作为「只读上下文」块前置到草稿（`buildMessages(text, context)`），改写模型第一次知道任务发生在哪个目录、哪条会话里。所有查找都是尽力而为：服务缺失、会话已关、id 未知都退化为「无上下文」，行为与 1.6.0 完全一致，绝不因此报错。
+- 结果卡片在接地生效时显示「已接工作区：<cwd>」；响应（JSON 与 SSE done 帧）新增 `grounding: { cwd, title } | null`。
+- `index.js` 取 `agents` / `workingDirectory` 用 try 包裹的 `scope.get`，不改动 `ctx.inject` 的服务名列表 —— 往 inject 里加名字会把路由注册卡死（历史教训）。
+
+### 安全说明
+- 上传的只有会话 id、标题（截断 160 字符、去换行）与解析出的工作目录路径，**不含任何对话内容、文件内容或密钥**。不想启用可在网络层屏蔽请求体中的 `sessionId`/`title` 字段（缺字段即回到无接地行为）。
+
 ## [1.6.0] - 2026-10-30
 
 目标：不再只是「把草稿改写得更专业」，而是让改写真正提高任务被做成的概率，并且可以被度量。

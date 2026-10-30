@@ -22,7 +22,7 @@ import { LOG_PATH, hostLog } from './lib/hostlog.js';
 import { createSettingsStore } from './lib/settings.js';
 
 /** Keep in sync with package.json — `test/package.test.js` enforces it. */
-export const VERSION = '1.6.0';
+export const VERSION = '1.7.0';
 
 /**
  * Optional bundle settings, read straight from the patch row's `config`:
@@ -55,7 +55,24 @@ export function apply(ctx, config) {
 
     const store = createSettingsStore({ log: (message) => hostLog(message) });
     const routes = createRoutes({
-      getServices: () => ({ llm: scope.get('llm'), defaultModel: scope.get('agentDefaultModel') }),
+      getServices: () => {
+        // llm/agentDefaultModel are guaranteed by the inject callback; the two
+        // grounding services belong to other plugins and may not exist yet, so
+        // a failed lookup must degrade to undefined, never throw.
+        const optional = (name) => {
+          try {
+            return scope.get(name);
+          } catch {
+            return undefined;
+          }
+        };
+        return {
+          llm: scope.get('llm'),
+          defaultModel: scope.get('agentDefaultModel'),
+          agents: optional('agents'),
+          workingDirectory: optional('workingDirectory'),
+        };
+      },
       pluginVersion: VERSION,
       config: readConfig(config),
       store,

@@ -294,3 +294,43 @@ test('the system prompt is tuned to the selected reasoning model', async () => {
   assert.match(llm.seen[0].system, /reasoning-style/);
   assert.equal(llm.seen[0].maxTokens, 6000);
 });
+
+test('a known session id grounds the rewrite with the live workspace', async () => {
+  const session = { id: 's1' };
+  const { routes, llm } = makeRoutes({
+    services: {
+      agents: { get: (id) => (id === 's1' ? { session } : undefined) },
+      workingDirectory: { get: (value) => (value === session ? 'E:\\hermes-work' : '') },
+    },
+  });
+  const payload = await (await routes.optimize(postJson({ text: 'x', sessionId: 's1', title: '周报\n会话' }))).json();
+  assert.deepEqual(payload.grounding, { cwd: 'E:\\hermes-work', title: '周报 会话' });
+  const sent = llm.seen[0].messages[0].content[0].text;
+  assert.match(sent, /^Read-only context supplied by the harness/);
+  assert.match(sent, /workspace: E:\\hermes-work/);
+  assert.match(sent, /session: 周报 会话/);
+  assert.ok(sent.endsWith('x'));
+});
+
+test('an unknown session or missing service degrades to no context', async () => {
+  const { routes, llm } = makeRoutes({
+    services: { agents: { get: () => { throw new Error('session closed'); } }, workingDirectory: { get: () => 'E:\\x' } },
+  });
+  const payload = await (await routes.optimize(postJson({ text: 'x', sessionId: 'zz' }))).json();
+  assert.equal(payload.grounding, null);
+  assert.equal(llm.seen[0].messages[0].content[0].text, 'x');
+});
+
+test('grounding survives the SSE done frame', async () => {
+  const session = { id: 's2' };
+  const { routes } = makeRoutes({
+    services: {
+      agents: { get: () => ({ session }) },
+      workingDirectory: { get: () => 'D:\\proj' },
+    },
+  });
+  const events = parseSse(await (await routes.optimize(postJson({ text: 'x', sessionId: 's2', stream: true }))).text());
+  const done = events.at(-1);
+  assert.equal(done.type, 'done');
+  assert.deepEqual(done.grounding, { cwd: 'D:\\proj', title: '' });
+});

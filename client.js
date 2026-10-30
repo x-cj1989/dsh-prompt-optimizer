@@ -66,6 +66,7 @@ const MAX_DRAFT_CHARS = 120000;
       'panel.stats': '{from} → {to} 字',
       'panel.lines': '{added} 行新增 / {removed} 行删除',
       'panel.anchors': '锚点 {kept}/{total} 保留',
+      'panel.grounded': '已接工作区：{cwd}',
       'panel.contract': '契约检查：{n} 项待补',
       'panel.anchorsMissing': '缺 {n} 处',
       'panel.chunks': '分 {n} 段',
@@ -144,6 +145,7 @@ const MAX_DRAFT_CHARS = 120000;
       'panel.stats': '{from} → {to} chars',
       'panel.lines': '{added} added / {removed} removed lines',
       'panel.anchors': '{kept}/{total} anchors kept',
+      'panel.grounded': 'grounded to {cwd}',
       'panel.anchorsMissing': '{n} dropped',
       'panel.chunks': '{n} parts',
       'panel.repairedOnly': 'invented material removed',
@@ -564,8 +566,12 @@ function countChars(text) {
       return { ok: value.ok === true, score, issues };
     }
 
-    async function optimizeRequest({ text, target, temperature, signal, onMeta, onDelta, onReset }) {
+    async function optimizeRequest({ text, target, temperature, sessionId, title, signal, onMeta, onDelta, onReset }) {
       const body = { text, temperature };
+      // Grounding is opt-in data the composer already owns; the host treats a
+      // missing pair exactly like the pre-1.7 behaviour (no context block).
+      if (typeof sessionId === 'string' && sessionId !== '') body.sessionId = sessionId;
+      if (typeof title === 'string' && title !== '') body.title = title.slice(0, 160);
       if (target !== null && target !== undefined && target.provider !== '' && target.model !== '') {
         body.provider = target.provider;
         body.model = target.model;
@@ -601,7 +607,7 @@ function countChars(text) {
             partial += event.text;
             onDelta?.(event.text);
           } else if (event.type === 'done') {
-            final = { text: typeof event.text === 'string' ? event.text : '', provider: event.provider, model: event.model, ledger: event.ledger ?? null, contract: event.contract ?? null };
+            final = { text: typeof event.text === 'string' ? event.text : '', provider: event.provider, model: event.model, ledger: event.ledger ?? null, contract: event.contract ?? null, grounding: event.grounding ?? null };
           } else if (event.type === 'error') {
             failure = typeof event.message === 'string' && event.message !== '' ? event.message : 'stream failed';
           }
@@ -612,7 +618,7 @@ function countChars(text) {
           feed(decoder.decode(value, { stream: true }));
         }
         if (failure !== '') throw new Error(failure);
-        const merged = final === null ? { text: partial, provider: target?.provider ?? '', model: target?.model ?? '', ledger: null, contract: null } : final;
+        const merged = final === null ? { text: partial, provider: target?.provider ?? '', model: target?.model ?? '', ledger: null, contract: null, grounding: null } : final;
         return merged;
       }
 
@@ -628,6 +634,7 @@ function countChars(text) {
         model: typeof payload?.model === 'string' ? payload.model : '',
         ledger: payload?.ledger ?? null,
         contract: payload?.contract ?? null,
+        grounding: payload?.grounding ?? null,
       };
     }
 
@@ -673,6 +680,25 @@ function countChars(text) {
       return composer === null ? '' : `${composer.provider}\u0000${composer.model}`;
     }
 
+    /**
+     * Best-effort session title from the `title` projection. The key is not
+     * guaranteed to be registered, so anything unexpected degrades to ''.
+     */
+    function readSessionTitle(useProjection) {
+      if (typeof useProjection !== 'function') return '';
+      try {
+        const value = useProjection('title');
+        if (typeof value === 'string') return value;
+        if (value !== null && typeof value === 'object') {
+          const candidate = value.title ?? value.text ?? value.name;
+          if (typeof candidate === 'string') return candidate;
+        }
+      } catch {
+        /* projection unavailable — rewrite proceeds without it */
+      }
+      return '';
+    }
+
     function createStore() {
       const state = {
         status: 'idle',
@@ -685,6 +711,8 @@ function countChars(text) {
         ledger: null,
         /** Static contract check from the host: { ok, score, issues }. */
         contract: null,
+        /** Workspace grounding the host applied: { cwd, title } | null. */
+        grounding: null,
         provider: '',
         model: '',
         models: [],
@@ -841,6 +869,7 @@ function countChars(text) {
             error: '',
             ledger: null,
             contract: null,
+            grounding: null,
             adopted: false,
             copied: false,
             direct,
@@ -855,6 +884,8 @@ function countChars(text) {
               // Once the settings panel has loaded, temperature/preset/candidates
               // are owned by the Host settings file; sending one here would win.
               temperature: state.settings === null ? state.temperature : undefined,
+              sessionId: typeof sessionId === 'string' ? sessionId : '',
+              title: options !== null && typeof options === 'object' && typeof options.title === 'string' ? options.title : '',
               signal: controller.signal,
               onMeta: (meta) => api.patch({ provider: meta.provider || state.provider, model: meta.model || state.model }),
               onDelta: (delta) => api.patch({ partial: state.partial + delta }),
@@ -870,6 +901,7 @@ function countChars(text) {
               model: typeof outcome.model === 'string' && outcome.model !== '' ? outcome.model : state.model,
               ledger: ledgerWithChunks(normalizeLedger(outcome.ledger), outcome.ledger),
               contract: normalizeContract(outcome.contract),
+              grounding: outcome.grounding !== null && typeof outcome.grounding === 'object' ? outcome.grounding : null,
               history: pushHistory({ ts: Date.now(), source: draft, result: text_, provider: outcome.provider ?? '', model: outcome.model ?? '', sessionId: sessionId === undefined ? '' : String(sessionId) }),
             });
             if (state.autoWrite === true || state.direct === true) {
@@ -1192,7 +1224,7 @@ function makeControl(t, store, localeService) {
             return;
           }
           const forceDirect = event !== null && typeof event === 'object' && (event.shiftKey === true || event.altKey === true);
-          void store.start(text, props.sessionId, { direct: forceDirect, composer });
+          void store.start(text, props.sessionId, { direct: forceDirect, composer, title: readSessionTitle(props.useProjection) });
         }, [busy, reviewing, text, props.sessionId, composerKey(composer)]);
 
         const label = busy
@@ -1411,6 +1443,9 @@ function makeControl(t, store, localeService) {
 
         const notes = [];
         if (state.copied) notes.push(h('div', { key: 'copied', className: 'dsh-po-note' }, t('panel.adoptedCopy', '当前环境无法写回输入框，已复制到剪贴板')));
+        if (ready && state.grounding !== null && typeof state.grounding.cwd === 'string' && state.grounding.cwd !== '') {
+          notes.push(h('div', { key: 'grounding', className: 'dsh-po-note' }, format(t('panel.grounded', '已接工作区：{cwd}'), { cwd: state.grounding.cwd })));
+        }
         const contract = normalizeContract(state.contract);
         if (ready && contract !== null && contract.issues.length > 0) {
           notes.push(h('div', {

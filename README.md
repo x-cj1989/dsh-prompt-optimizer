@@ -230,6 +230,14 @@ npm run bench   # 离线跑 bench/drafts.jsonl 的契约检查（Level 1，不�
 
 骨架来自 DSH 自带 `cordis-plugin-development` 技能的 `templates/decoration`，路由写法参考了 `dsh-session-log-export`，模型调用参考了 `dsh-session-title-llm`。
 
+## 1.7.0 新增：工作区接地
+
+点 ✨ 时客户端把 `sessionId` 和会话标题随请求上传，Host 用 `agents` + `workingDirectory` 服务解析出**当前会话的工作目录**，作为一段标注为「只读上下文」的块前置到草稿之后（`buildMessages(text, context)`）。改写模型第一次知道任务发生在哪个目录，写出来的路径和命令才有依据。
+
+- 全程尽力而为：服务不存在、会话已关、id 不认识 → 退化为「无上下文」，与 1.6.0 行为完全一致，不报错。
+- 生效时结果卡片多一行「已接工作区：`<cwd>`」；响应里带 `grounding: { cwd, title } | null`。
+- 上传的只有会话 id、标题（去换行、截断 160 字符）和解析出的目录路径 —— 不含对话内容、文件内容或密钥。
+
 ## 1.6.0 新增：模型自适应、契约检查与 bench
 
 ### 模型自适应
