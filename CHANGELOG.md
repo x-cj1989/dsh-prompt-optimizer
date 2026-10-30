@@ -2,6 +2,17 @@
 
 本文件记录本插件所有值得注意的变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.7.2] - 2026-10-30
+
+### 修复
+- **客户端错误路径抛 `ReferenceError: t is not defined`**：结果卡片 `start()` 的 `catch` 里调用了 `explainError(t, message)`，但 `t` 是 `apply()` 的局部常量，`createStore()` 内部的 `api` 作用域里并没有它。结果**任何一次改写失败**（上游报错、空答案、超时）都会在写错误状态之前抛 `ReferenceError`：面板永远停在「优化中…」，用户看不到任何错误提示，控制台只剩一条 `t is not defined`。改为 `explainError(api.locale, message)`（`apply()` 会把真正的翻译函数覆盖到 `store.locale` 上，`api === store`），错误状态现在会正常落盘并显示中文原因。回归测试：上游 502 必须把状态置为 `error` 且提示「模型没有返回正文」。
+- **流式错误丢失状态码**：`sseResponse` 的 `catch` 分支只推 `{ type: 'error', message }`，把 `emptyAnswerError` 挂的 `status: 502` 丢掉了；客户端只能显示一句中文错误，无法区分「上游失败/空答案」与其它失败。现在 SSE error 帧与 JSON 路径一样携带 `status`，客户端用 `RequestError` 抛出。回归测试：流式空答案必须带 `status: 502`；客户端收到带 `status` 的 SSE error 帧后状态置为 `error`。
+- **`AbortSignal` 兜底**：`requestSignal` 原来无条件调用 `AbortSignal.timeout(TIMEOUT_MS)`，运行时缺这个方法时会在路由应答之前抛 `TypeError`（`AbortSignal.any` 有 try 兜底，`timeout` 没有）。现在 `timeout` 与 `any` 都是可选的：`any` 缺失时退化为手动 `addEventListener` 链；两者都缺失时返回一个 `AbortController` 的 signal，保证路由总能正常应答。回归测试：去掉 `AbortSignal.timeout` / `AbortSignal.any` 后路由仍能正常应答。
+- **`config.temperature` 死代码**：`lib/handler.js` 的 `resolveSelection` 会读 `bundleConfig.temperature`（优先级：请求体 → bundle config → 设置文件），但 `index.js:readConfig` 只透传 `{ provider, model }`，中间这一档从来没生效过。现在 `config.temperature` 是有限数字时一并透传。
+
+### 变更
+- `index.js` 的 `readConfig` 注释补上 `temperature` 字段示例。
+
 ## [1.7.1] - 2026-10-30
 
 ### 修复

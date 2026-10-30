@@ -22,24 +22,31 @@ import { LOG_PATH, hostLog } from './lib/hostlog.js';
 import { createSettingsStore } from './lib/settings.js';
 
 /** Keep in sync with package.json — `test/package.test.js` enforces it. */
-export const VERSION = '1.7.1';
+export const VERSION = '1.7.2';
 
 /**
  * Optional bundle settings, read straight from the patch row's `config`:
  *
  *   - id: prompt-optimizer
  *     name: '@local/dsh-prompt-optimizer'
- *     config: { provider: openrouter, model: anthropic/claude-sonnet-4 }
+ *     config: { provider: openrouter, model: anthropic/claude-sonnet-4, temperature: 0.2 }
  *
  * Everything is optional. With no config at all the plugin follows the model
  * selected in the composer, then the profile default, then the first model the
  * configured LLM service offers — so it works on a fresh machine unchanged.
+ *
+ * `temperature` is forwarded only when it is a real number: the handler reads
+ * it as the tier between the request body and the saved settings file, and
+ * silently dropping it would leave half of that chain dead.
  */
 function readConfig(config) {
   if (config === null || typeof config !== 'object') return {};
   const provider = typeof config.provider === 'string' ? config.provider.trim() : '';
   const model = typeof config.model === 'string' ? config.model.trim() : '';
-  return provider === '' || model === '' ? {} : { provider, model };
+  if (provider === '' || model === '') return {};
+  const temperature =
+    typeof config.temperature === 'number' && Number.isFinite(config.temperature) ? config.temperature : undefined;
+  return temperature === undefined ? { provider, model } : { provider, model, temperature };
 }
 
 export function apply(ctx, config) {

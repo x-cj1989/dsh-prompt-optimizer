@@ -594,6 +594,7 @@ function countChars(text) {
         let partial = '';
         let final = null;
         let failure = '';
+        let failureStatus = 0;
         const feed = createSseParser((event) => {
           if (event === null || typeof event !== 'object') return;
           if (event.type === 'meta') {
@@ -610,6 +611,9 @@ function countChars(text) {
             final = { text: typeof event.text === 'string' ? event.text : '', provider: event.provider, model: event.model, ledger: event.ledger ?? null, contract: event.contract ?? null, grounding: event.grounding ?? null };
           } else if (event.type === 'error') {
             failure = typeof event.message === 'string' && event.message !== '' ? event.message : 'stream failed';
+            // The JSON path reports the upstream status; the SSE path must too,
+            // so a 502 empty answer is not shown as an unknown failure.
+            if (typeof event.status === 'number') failureStatus = event.status;
           }
         });
         for (;;) {
@@ -617,7 +621,10 @@ function countChars(text) {
           if (done) break;
           feed(decoder.decode(value, { stream: true }));
         }
-        if (failure !== '') throw new Error(failure);
+        if (failure !== '') {
+          if (failureStatus !== 0) throw new RequestError(failure, failureStatus);
+          throw new Error(failure);
+        }
         const merged = final === null ? { text: partial, provider: target?.provider ?? '', model: target?.model ?? '', ledger: null, contract: null, grounding: null } : final;
         return merged;
       }
@@ -919,7 +926,11 @@ function countChars(text) {
             api.patch({
               status: 'error',
               visible: true,
-              error: status === 401 ? `${message}${api.locale('error.authHint')}` : explainError(t, message),
+              // `t` is a local of apply(), not of this store: the error path has to
+              // go through `api.locale`, which apply() overwrites with the real
+              // translator. A bare `t` here threw ReferenceError and left the panel
+              // stuck in the running state with no error shown.
+            error: status === 401 ? `${message}${api.locale('error.authHint')}` : explainError(api.locale, message),
             });
           } finally {
             controller = null;

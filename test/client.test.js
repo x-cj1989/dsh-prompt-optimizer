@@ -501,3 +501,61 @@ test('the card opens for the settings page before any rewrite exists', async () 
   const buttons = collect(element, (node) => typeof node?.type === 'string' && node.type === 'button');
   assert.ok(buttons.some((node) => node.props.title === '设置'), 'the header settings toggle is missing');
 });
+
+test('an upstream failure patches the error state instead of throwing', async () => {
+  const { store } = applyClient();
+  const original = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const method = String(init?.method ?? 'GET').toUpperCase();
+    if (method === 'GET') {
+      return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => ({ models: [], default: null }) };
+    }
+    return {
+      ok: false,
+      status: 502,
+      headers: { get: () => 'application/json' },
+      text: async () => JSON.stringify({ error: 'the model returned no text for this draft' }),
+      json: async () => ({ error: 'the model returned no text for this draft' }),
+    };
+  };
+  try {
+    store.setAutoWrite(false);
+    await store.start('写个周报', 's11');
+    assert.equal(store.get().status, 'error');
+    // The known 502 cause is translated, not shown as raw English.
+    assert.match(String(store.get().error), /模型没有返回正文/);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test('an SSE error frame carrying a status surfaces as the typed failure', async () => {
+  const { store } = applyClient();
+  const original = globalThis.fetch;
+  const encoder = new TextEncoder();
+  globalThis.fetch = async (input, init) => {
+    const method = String(init?.method ?? 'GET').toUpperCase();
+    if (method === 'GET') {
+      return { ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => ({ models: [], default: null }) };
+    }
+    const body =
+      'data: {"type":"meta","provider":"p","model":"m"}\n\n' +
+      'data: {"type":"delta","text":"  "}\n\n' +
+      'data: {"type":"error","message":"the model returned no text","status":502}\n\n';
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(body));
+        controller.close();
+      },
+    });
+    return { ok: true, status: 200, headers: { get: () => 'text/event-stream' }, body: stream };
+  };
+  try {
+    store.setAutoWrite(false);
+    await store.start('写个周报', 's10');
+    assert.equal(store.get().status, 'error');
+    assert.match(String(store.get().error), /no text/);
+  } finally {
+    globalThis.fetch = original;
+  }
+});

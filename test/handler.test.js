@@ -215,6 +215,55 @@ test('an empty model answer is a 502', async () => {
   assert.match((await response.json()).error, /no text/);
 });
 
+test('a streamed empty answer reports the 502 status, not just the message', async () => {
+  const { routes } = makeRoutes({ deltasPerCall: [[], []] });
+  const events = parseSse(await (await routes.optimize(postJson({ text: 'x', stream: true }))).text());
+  const failure = events.at(-1);
+  assert.equal(failure.type, 'error');
+  assert.match(failure.message, /no text/);
+  assert.equal(failure.status, 502);
+});
+
+test('the rewrite still runs on a runtime without AbortSignal.timeout', async () => {
+  const original = AbortSignal.timeout;
+  try {
+    Object.defineProperty(AbortSignal, 'timeout', { value: undefined, configurable: true });
+    const { routes, llm } = makeRoutes();
+    const response = await routes.optimize(postJson({ text: 'x' }));
+    assert.equal(response.status, 200);
+    assert.equal(llm.seen.length, 1);
+  } finally {
+    Object.defineProperty(AbortSignal, 'timeout', { value: original, configurable: true });
+  }
+});
+
+test('a caller abort reaches the stream without AbortSignal.any', async () => {
+  const original = AbortSignal.any;
+  try {
+    Object.defineProperty(AbortSignal, 'any', { value: undefined, configurable: true });
+    const controller = new AbortController();
+    controller.abort();
+    const { routes } = makeRoutes({ deltas: [] });
+    const events = parseSse(
+      await (
+        await routes.optimize(
+          new Request(`${ORIGIN}${ROUTE}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ text: 'x', stream: true }),
+            signal: controller.signal,
+          }),
+        )
+      ).text(),
+    );
+    const failure = events.at(-1);
+    assert.equal(failure.type, 'error');
+    assert.equal(failure.status, 502);
+  } finally {
+    Object.defineProperty(AbortSignal, 'any', { value: original, configurable: true });
+  }
+});
+
 test('an empty first answer is retried once with more room', async () => {
   const { routes, llm } = makeRoutes({ deltasPerCall: [[], ['# 目标', '\n- 写周报']] });
   const response = await routes.optimize(postJson({ text: '帮我写个周报' }));
